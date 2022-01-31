@@ -1,5 +1,5 @@
 Vue.component('sly-app', {
-  props: ['url', 'initState'],
+  props: ['url'],
   template: `
 <div>
   <slot :state="state" :data="data" :command="command" :post="post" />
@@ -65,10 +65,10 @@ Vue.component('sly-app', {
 
   async created() {
     console.log('First Init WS');
-    this.state = await this.getJson('/sly-app-state');
-    this.data = await this.getJson('/sly-app-data');
+    this.state = await this.getJson('/sly/state');
+    this.data = await this.getJson('/sly/data');
 
-    this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly-app-ws`);
+    this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly/ws`);
     this.ws.onmessage = (event) => {
       console.log('Message received from Python', event.data);
       this.merge(event.data);
