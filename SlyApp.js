@@ -60,7 +60,7 @@ Vue.component('sly-app', {
 
   async created() {
     console.log('Max test!');
-    console.log('Max2 test!!');
+    console.log('Max2 test!!!');
     console.log('First Init WS');
     this.state = await this.getJson('/sly-app-state');
     this.data = await this.getJson('/sly-app-data');
