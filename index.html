@@ -21,13 +21,13 @@
 
     <div id="sly-app">
       <sly-app url="">
-        <template v-slot="{ state, data, command, http }">
+        <template v-slot="{ state, data, command, post }">
           <div>
             <div>`Hello random user: {{state.name}}</div>
-            <el-button type="primary" @click="http('/generate')">Get name (post response)</el-button>
-            <el-button type="primary" @click="http('/generate-ws')">Get name (websocket)</el-button>
+            <el-button type="primary" @click="post('/generate')">Get name (post response)</el-button>
+            <el-button type="primary" @click="post('/generate-ws')">Get name (websocket)</el-button>
             <div style="margin-top: 10px;">
-                <el-button type="danger" @click="http('/stop')">Test stop</el-button>
+                <el-button type="danger" @click="post('/stop')">Test stop</el-button>
             </div>
           </div>
         </template>

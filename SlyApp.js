@@ -2,7 +2,7 @@ Vue.component('sly-app', {
   props: ['url', 'initState'],
   template: `
 <div>
-  <slot :state="state" :data="data" :command="command" :http="http" />
+  <slot :state="state" :data="data" :command="command" :post="post" />
 </div>
   `,
 
@@ -28,7 +28,7 @@ Vue.component('sly-app', {
       this.ws.send(JSON.stringify({ command: command, state: this.state }));
     },
 
-    http(command) {
+    post(command) {
       console.log('Http!', command);
 
       fetch(`${this.formattedUrl}${command}`, {
