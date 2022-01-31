@@ -32,7 +32,12 @@ Vue.component('sly-app', {
       console.log('Http!', command);
 
       fetch(`${this.formattedUrl}${command}`, {
-          method: 'POST', body: JSON.stringify(this.state), headers: {'Content-Type': 'application/json'}
+          method: 'POST',
+          body: JSON.stringify({
+            state: this.state,
+            context: this.context,
+          }),
+          headers: {'Content-Type': 'application/json'}
       }).then(res => res.json()).then((json) => {
           this.merge(json);
       });
@@ -49,23 +54,21 @@ Vue.component('sly-app', {
 
     merge(payload) {
       if (payload.state) {
-        Object.assign(this.state, payload.state);
+        this.state = jsonpatch.applyPatch(this.state, payload.state).newDocument;
       }
 
       if (payload.data) {
-        Object.assign(this.state, payload.data);
+        this.data = jsonpatch.applyPatch(this.data, payload.data).newDocument;
       }
     },
   },
 
   async created() {
-    console.log('Max test!');
-    console.log('Max2 test!!!');
     console.log('First Init WS');
     this.state = await this.getJson('/sly-app-state');
     this.data = await this.getJson('/sly-app-data');
 
-    this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/ws`);
+    this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly-app-ws`);
     this.ws.onmessage = (event) => {
       console.log('Message received from Python', event.data);
       this.merge(event.data);
