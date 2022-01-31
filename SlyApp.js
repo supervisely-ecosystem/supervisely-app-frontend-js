@@ -58,7 +58,7 @@ Vue.component('sly-app', {
     },
   },
 
-  created() {
+  async created() {
     console.log('First Init WS');
     this.state = await this.getJson('/sly-app-state');
     this.data = await this.getJson('/sly-app-data');
