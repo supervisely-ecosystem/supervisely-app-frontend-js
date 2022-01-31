@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.15.7/theme-chalk/index.min.css" rel="stylesheet">
+
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Roboto);
+
+      body {
+        font-family: 'Roboto', sans-serif;
+        padding: 20px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.15.7/index.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <script src="./SlyApp.js"></script>
+
+    <div id="sly-app">
+      <sly-app url="">
+        <template v-slot="{ state, data, command, http }">
+          <div>
+            <div>`Hello random user: {{state.name}}</div>
+            <el-button type="primary" @click="http('/generate')">Get name (post response)</el-button>
+            <el-button type="primary" @click="http('/generate-ws')">Get name (websocket)</el-button>
+            <div style="margin-top: 10px;">
+                <el-button type="danger" @click="http('/stop')">Test stop</el-button>
+            </div>
+          </div>
+        </template>
+      </sly-app>
+    </div>
+
+    <script>
+      slyApp.init();
+    </script>
+  </body>
+</html>
