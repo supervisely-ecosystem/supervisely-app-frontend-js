@@ -70,8 +70,8 @@ Vue.component('sly-app', {
 
     this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly/ws`);
     this.ws.onmessage = (event) => {
-      console.log('Message received from Python', event.data);
-      this.merge(event.data);
+      console.log('Message received from Python', event);
+      this.merge(event);
     };
   },
 });
