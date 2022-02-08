@@ -33,12 +33,12 @@ Vue.component('sly-app', {
   },
 
   methods: {
-    command(command) {
+    command(command, payload = {}) {
       console.log('Command!', command);
-      this.ws.send(JSON.stringify({ command: command, state: this.state }));
+      this.ws.send(JSON.stringify({ command: command, state: this.state, payload }));
     },
 
-    post(command) {
+    post(command, payload = {}) {
       console.log('Http!', command);
 
       fetch(`${this.formattedUrl}${command}`, {
@@ -46,6 +46,7 @@ Vue.component('sly-app', {
           body: JSON.stringify({
             state: this.state,
             context: this.context,
+            payload,
           }),
           headers: {'Content-Type': 'application/json'}
       }).then(res => res.json()).then((json) => {
