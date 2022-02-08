@@ -1,13 +1,23 @@
+if (window.sly && window.sly.Vue) {
+  window.Vue = sly.Vue;
+}
+
 Vue.component('sly-app', {
-  props: ['url'],
+  props: {
+    url: {
+      type: String,
+      default: document.location.href,
+    }
+  },
   template: `
 <div>
-  <slot :state="state" :data="data" :command="command" :post="post" />
+  <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
 </div>
   `,
 
   data: function () {
     return {
+      loading: true,
       task: {},
       state: {},
       data: {},
@@ -66,10 +76,14 @@ Vue.component('sly-app', {
   },
 
   async created() {
-    console.log('First Init WS');
-    this.state = await this.getJson('/sly/state');
-    this.data = await this.getJson('/sly/data');
+    try {
+      this.state = await this.getJson('/sly/state');
+      this.data = await this.getJson('/sly/data');
+    } finally {
+      this.loading = false;
+    }
 
+    console.log('First Init WS');
     this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly/ws`);
     this.ws.onmessage = (event) => {
       console.log('Message received from Python', event);
@@ -81,6 +95,8 @@ Vue.component('sly-app', {
 window.slyApp = {
   app: null,
   init() {
+    if (this.app) return;
+
     this.app = new Vue({
       el: '#sly-app',
       computed: {
@@ -91,3 +107,7 @@ window.slyApp = {
     });
   },
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+  slyApp.init();
+});

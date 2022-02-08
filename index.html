@@ -1,41 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.15.7/theme-chalk/index.min.css" rel="stylesheet">
-
-    <style>
-      @import url(https://fonts.googleapis.com/css?family=Roboto);
-
-      body {
-        font-family: 'Roboto', sans-serif;
-        padding: 20px;
-      }
-    </style>
+    <link rel="stylesheet" href="https://supervise.ly/apps-designer.bundle.css" />
   </head>
 
   <body>
-    <script src="https://unpkg.com/vue"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.15.7/index.min.js"></script>
+    
+    <!-- <script src="https://unpkg.com/browse/vue@2.6.11/dist/vue.min.js"></script> -->
+    <script src="https://supervise.ly/apps-designer.bundle.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/dist/fast-json-patch.min.js"></script>
-    <script src="https://supervisely-ecosystem.github.io/supervisely-app-frontend-js/SlyApp.js"></script>
+    <!-- <script src="https://supervisely-ecosystem.github.io/supervisely-app-frontend-js/SlyApp.js"></script> -->
+    <script src="./SlyApp.js"></script>
 
     <div id="sly-app">
-      <sly-app url="">
+      <sly-app url="http://192.168.50.207/net/Q9_H9tUrHipnPL4TkUyzqVkRfAOjaMfMRyjr8QN2l_BTbr3CMgqcpWp0022Di5QOcNOG__2bJQ==">
         <template v-slot="{ state, data, command, post }">
-          <div>
+          <sly-card title="Name generator" subtitle="http & ws test" class="mt15">
             <div>`Hello random user: {{state.name}}</div>
             <el-button type="primary" @click="post('/generate')">Get name (post response)</el-button>
             <el-button type="primary" @click="post('/generate-ws')">Get name (websocket)</el-button>
             <div style="margin-top: 10px;">
                 <el-button type="danger" @click="post('/stop')">Test stop</el-button>
             </div>
-          </div>
+          </sly-card>
         </template>
       </sly-app>
     </div>
-
-    <script>
-      slyApp.init();
-    </script>
   </body>
 </html>
