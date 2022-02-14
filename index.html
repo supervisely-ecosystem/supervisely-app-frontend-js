@@ -1,27 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="https://supervise.ly/apps-designer.bundle.css" />
+    <title>SlyApp example</title>
   </head>
 
   <body>
-    
-    <!-- <script src="https://unpkg.com/browse/vue@2.6.11/dist/vue.min.js"></script> -->
-    <script src="https://supervise.ly/apps-designer.bundle.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/dist/fast-json-patch.min.js"></script>
     <!-- <script src="https://supervisely-ecosystem.github.io/supervisely-app-frontend-js/SlyApp.js"></script> -->
-    <script src="./SlyApp.js"></script>
+    <script type="module" src="./SlyApp.js"></script>
 
     <div id="sly-app">
-      <sly-app url="http://192.168.50.207/net/Q9_H9tUrHipnPL4TkUyzqVkRfAOjaMfMRyjr8QN2l_BTbr3CMgqcpWp0022Di5QOcNOG__2bJQ==">
+      <sly-app>
         <template v-slot="{ state, data, command, post }">
           <sly-card title="Name generator" subtitle="http & ws test" class="mt15">
-            <div>`Hello random user: {{state.name}}</div>
+            <div id="text">Hello random user: {{state.name}}</div>
             <el-button type="primary" @click="post('/generate')">Get name (post response)</el-button>
             <el-button type="primary" @click="post('/generate-ws')">Get name (websocket)</el-button>
+            <el-button type="primary" @click="post.throttled('/generate')">Get name (post throttle)</el-button>
             <div style="margin-top: 10px;">
-                <el-button type="danger" @click="post('/stop')">Test stop</el-button>
+              <el-button type="danger" @click="post('/stop')">Test stop</el-button>
             </div>
           </sly-card>
         </template>
