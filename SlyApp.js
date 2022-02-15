@@ -127,25 +127,23 @@ function initApp() {
     },
   });
 
-  document.addEventListener('DOMContentLoaded', function() {
-    window.slyApp = {
-      app: null,
-      init() {
-        if (this.app) return;
+  window.slyApp = {
+    app: null,
+    init() {
+      if (this.app) return;
 
-        this.app = new Vue({
-          el: '#sly-app',
-          computed: {
-            document() {
-              return document;
-            }
-          },
-        });
-      },
-    };
+      this.app = new Vue({
+        el: '#sly-app',
+        computed: {
+          document() {
+            return document;
+          }
+        },
+      });
+    },
+  };
 
-    slyApp.init();
-  });
+  slyApp.init();
 }
 
 const scripts = [
