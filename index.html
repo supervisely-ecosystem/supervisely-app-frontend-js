@@ -5,8 +5,12 @@
   </head>
 
   <body>
+    <script src="https://supervise.ly/apps-designer.bundle.js"></script>
+    <script>
+      window.Vue = sly.Vue;
+    </script>
     <!-- <script src="https://supervisely-ecosystem.github.io/supervisely-app-frontend-js/SlyApp.js"></script> -->
-    <script type="module" src="./SlyApp.js"></script>
+    <script src="./SlyApp.js" type="module"></script>
 
     <div id="sly-app">
       <sly-app>
