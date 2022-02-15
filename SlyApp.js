@@ -3,10 +3,14 @@ document.head.innerHTML += `<link type="text/css" rel="stylesheet" href="https:/
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
 
+import DebugPanel from './DebugPanel.js';
+
 function initApp() {
   if (window.sly && window.sly.Vue) {
     window.Vue = sly.Vue;
   }
+
+  DebugPanel.init();
 
   Vue.component('sly-app', {
     props: {
@@ -17,6 +21,7 @@ function initApp() {
     },
     template: `
 <div>
+  <debug-panel v-if="isDebugMode" :value="{ state, data }"></debug-panel>
   <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
 </div>
     `,
@@ -29,6 +34,7 @@ function initApp() {
         data: {},
         context: {},
         ws: null,
+        isDebugMode: false,
       };
     },
 
@@ -62,13 +68,16 @@ function initApp() {
         });
       },
 
-      async getJson(path) {
-        return fetch(`${this.formattedUrl}${path}`, {
+      async getJson(path, contentOnly = true) {
+        const res = await fetch(`${this.formattedUrl}${path}`, {
           method: 'POST',
-        })
-        .then(res => res.json()).then((json) => {
-          return json;
         });
+
+        if (contentOnly) {
+          return res.json().then(json => json);
+        }
+
+        return res;
       },
 
       merge(payload) {
@@ -105,7 +114,9 @@ function initApp() {
       this.post.throttled = throttle(this.post, 1200);
 
       try {
-        this.state = await this.getJson('/sly/state');
+        const stateRes = await this.getJson('/sly/state', false);
+        this.isDebugMode = !!stateRes.headers['x-debug-mode'];
+        this.state = stateRes.json().then(json => json);
         this.data = await this.getJson('/sly/data');
       } finally {
         this.loading = false;
@@ -116,32 +127,42 @@ function initApp() {
     },
   });
 
-  window.slyApp = {
-    app: null,
-    init() {
-      if (this.app) return;
+    window.slyApp = {
+      app: null,
+      init() {
+        if (this.app) return;
 
-      this.app = new Vue({
-        el: '#sly-app',
-        computed: {
-          document() {
-            return document;
-          }
-        },
-      });
-    },
-  };
+        this.app = new Vue({
+          el: '#sly-app',
+          computed: {
+            document() {
+              return document;
+            }
+          },
+        });
+      },
+    };
 
-  slyApp.init();
+    slyApp.init();
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+const scripts = [
+  'https://supervise.ly/apps-designer.bundle.js',
+  'https://cdn.jsdelivr.net/npm/jsoneditor@9.7.0/dist/jsoneditor.min.js',
+];
+
+let loadedCnt = 0;
+
+scripts.forEach((scriptUrl) => {
   const script = document.createElement('script');
+
   script.onload = function () {
-    initApp();
+    if (++loadedCnt >= scripts.length) {
+      initApp();
+    }
   };
 
-  script.src = 'https://supervise.ly/apps-designer.bundle.js';
+  script.src = scriptUrl;
 
   document.head.appendChild(script);
 });
