@@ -116,7 +116,7 @@ function initApp() {
       try {
         const stateRes = await this.getJson('/sly/state', false);
         this.isDebugMode = !!stateRes.headers['x-debug-mode'];
-        this.state = stateRes.json().then(json => json);
+        this.state = await stateRes.json().then(json => json);
         this.data = await this.getJson('/sly/data');
       } finally {
         this.loading = false;
@@ -127,6 +127,7 @@ function initApp() {
     },
   });
 
+  document.addEventListener('DOMContentLoaded', function() {
     window.slyApp = {
       app: null,
       init() {
@@ -144,6 +145,7 @@ function initApp() {
     };
 
     slyApp.init();
+  });
 }
 
 const scripts = [
