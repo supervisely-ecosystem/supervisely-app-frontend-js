@@ -72,7 +72,12 @@ Vue.component('sly-app', {
 
     merge(payload) {
       if (payload.state) {
+        console.log('before merge state:');
+        console.dir(payload.state);
+        console.dir(this.state);
         this.state = jsonpatch.applyPatch(this.state, payload.state).newDocument;
+        console.log('after merge state:');
+        console.dir(this.state);
       }
 
       if (payload.data) {
