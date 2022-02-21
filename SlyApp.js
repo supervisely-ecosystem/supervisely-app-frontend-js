@@ -3,6 +3,42 @@ document.head.innerHTML += `<link type="text/css" rel="stylesheet" href="https:/
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
 
+const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
+
+function applyPatch(document, patch) {
+  let curDocument = document;
+
+  patch.forEach((operation) => {
+    if (vuePatchOptsSet.has(operation.op)) {
+      const pathParts = operation.path.split('/');
+      const propName = pathParts.splice(-1)[0];
+
+      let parentObject;
+
+      if (pathParts.length > 1) {
+        parentObject = jsonpatch.getValueByPointer(curDocument, pathParts.join('/'));
+      } else {
+        parentObject = curDocument;
+      }
+
+      if (typeof parentObject !== 'object') {
+        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        return;
+      };
+
+      if (operation.op === 'add' || operation.op === 'replace') {
+        Vue.set(parentObject, propName, operation.value);
+      } else {
+        Vue.delete(parentObject, propName);
+      }
+    } else {
+      curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+    }
+  });
+
+  return curDocument;
+}
+
 Vue.component('sly-app', {
   props: {
     url: {
@@ -22,6 +58,7 @@ Vue.component('sly-app', {
       task: {},
       state: {},
       data: {},
+      sessionInfo: {},
       context: {},
       ws: null,
       isDebugMode: false,
@@ -72,16 +109,11 @@ Vue.component('sly-app', {
 
     merge(payload) {
       if (payload.state) {
-        console.log('before merge state:');
-        console.dir(payload.state);
-        console.dir(this.state);
-        this.state = jsonpatch.applyPatch(this.state, payload.state).newDocument;
-        console.log('after merge state:');
-        console.dir(this.state);
+        this.state = applyPatch(this.state, payload.state);
       }
 
       if (payload.data) {
-        this.data = jsonpatch.applyPatch(this.data, payload.data).newDocument;
+        this.data = applyPatch(this.data, payload.data);
       }
     },
 
@@ -114,6 +146,19 @@ Vue.component('sly-app', {
       this.isDebugMode = !!stateRes.headers['x-debug-mode'];
       this.state = await stateRes.json().then(json => json);
       this.data = await this.getJson('/sly/data');
+      this.sessionInfo = await this.getJson('/sly/session-info');
+
+      if (sly.publicApiInstance) {
+        if (this.sessionInfo?.API_TOKEN) {
+          sly.publicApiInstance.defaults.headers.common['x-api-key'] = this.sessionInfo.API_TOKEN;
+        }
+
+        if (sly.publicApiInstance && this.sessionInfo?.SERVER_ADDRESS) {
+          const { SERVER_ADDRESS } = this.sessionInfo;
+          sly.publicApiInstance.defaults.baseURL = `${SERVER_ADDRESS.endsWith('/') ? SERVER_ADDRESS.slice(0, -1) : SERVER_ADDRESS}/public/api/v3`;
+        }
+      }
+    } catch(err) {
     } finally {
       this.loading = false;
     }
@@ -139,8 +184,6 @@ window.slyApp = {
   },
 };
 
-  document.addEventListener('DOMContentLoaded', function() {
-    slyApp.init();
-  });
-
-
+document.addEventListener('DOMContentLoaded', function() {
+  slyApp.init();
+});
