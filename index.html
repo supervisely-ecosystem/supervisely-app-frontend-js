@@ -15,15 +15,7 @@
     <div id="sly-app">
       <sly-app>
         <template v-slot="{ state, data, command, post }">
-          <sly-card title="Name generator" subtitle="http & ws test" class="mt15">
-            <div id="text">Hello random user: {{state.name}}</div>
-            <el-button type="primary" @click="post('/generate')">Get name (post response)</el-button>
-            <el-button type="primary" @click="post('/generate-ws')">Get name (websocket)</el-button>
-            <el-button type="primary" @click="post.throttled('/generate')">Get name (post throttle)</el-button>
-            <div style="margin-top: 10px;">
-              <el-button type="danger" @click="post('/stop')">Test stop</el-button>
-            </div>
-          </sly-card>
+          <div>SlyApp.js example</div>
         </template>
       </sly-app>
     </div>
