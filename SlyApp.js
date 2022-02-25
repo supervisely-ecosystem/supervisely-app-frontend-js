@@ -59,7 +59,7 @@ function applyPatch(document, patch) {
 
 Vue.component('sly-app-error', {
   components: {
-    'el-dialog': sly.Vue.options.components.ElDialog,
+    'el-dialog': Vue.options.components.ElDialog,
   },
 
   template: `
