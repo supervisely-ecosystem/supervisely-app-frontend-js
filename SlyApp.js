@@ -5,6 +5,24 @@ import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js
 
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
 
+function requestErrorHandler(res) {
+  console.dir(res);
+  if (!res.ok) {
+    console.dir()
+    const err = new Error();
+
+    err.status = res.status;
+    err.title = res.statusText;
+    err.details = res.details || { message: 'Something went wrong' };
+
+    console.dir(err);
+
+    throw err;
+  }
+
+  return res;
+}
+
 function applyPatch(document, patch) {
   let curDocument = document;
 
@@ -39,6 +57,82 @@ function applyPatch(document, patch) {
   return curDocument;
 }
 
+Vue.component('sly-app-error', {
+  components: {
+    'el-dialog': sly.Vue.options.components.ElDialog,
+  },
+
+  template: `
+<div>
+  <el-dialog v-if="elementAvailable" v-model="visible" @close="onClose" :title="errorTitle">
+    <div class="fflex">
+      <i class="notification-box-icon zmdi zmdi-alert-triangle mr5" style="font-size: 25px; color: rgb(238, 131, 131);"></i>
+
+      <span>
+        {{ errorMessage }}
+      </span>
+    </div>
+
+    <div slot="footer">
+      <el-button type="primary" @click="close">Ok</el-button>
+    </div>
+  </el-dialog>
+
+  <div v-else-if="visible" class="notification-box notification-box-warning" style="background-color:lightgray;padding:10px;border-radius:6px;display:flex;align-items:center;background-color:rgb(255 236 236);border:1px solid rgb(255 214 214);border-left:4px solid rgb(238, 131, 131);">
+    <i class="notification-box-icon zmdi zmdi-alert-triangle" style="font-size: 25px;margin-right: 10px;color: rgb(238, 131, 131);"></i>
+
+    <div>
+      <div class="notification-box-title" style="font-size: 16px; font-weight: bold;">{{errorTitle}}</div>
+      {{ errorMessage }}
+    </div>
+  </div>
+</div>
+  `,
+
+  data() {
+    return {
+      visible: false,
+      err: null,
+    };
+  },
+
+  computed: {
+    elementAvailable () {
+      return !!window.sly;
+    },
+
+    errorTitle() {
+      if (!this.err) return '';
+
+      return this.err.details.title || this.err.title || '';
+    },
+
+    errorMessage() {
+      if (!this.err) return '';
+
+      return this.err.details.message;
+    },
+  },
+
+  methods: {
+    open(err) {
+      console.dir(err);
+      if (!err.details.message) return;
+      this.err = err;
+      this.visible = true;
+    },
+
+    onClose() {
+      this.err = null;
+    },
+
+    close() {
+      this.visible = false;
+      this.onClose();
+    },
+  },
+});
+
 Vue.component('sly-app', {
   props: {
     url: {
@@ -46,8 +140,10 @@ Vue.component('sly-app', {
       default: document.location.href,
     }
   },
+
   template: `
 <div>
+  <sly-app-error ref="err-dialog"></sly-app-error>
   <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
 </div>
   `,
@@ -88,23 +184,36 @@ Vue.component('sly-app', {
             payload,
           }),
           headers: {'Content-Type': 'application/json'}
-      }).then(res => res.json()).then((json) => {
+      })
+      .then(requestErrorHandler)
+      .then(res => res.json())
+      .then((json) => {
         if (!json) return;
 
         this.merge(json);
+      })
+      .catch((err) => {
+        this.$refs['err-dialog'].open(err);
+        throw err;
       });
     },
 
     async getJson(path, contentOnly = true) {
-      const res = await fetch(`${this.formattedUrl}${path}`, {
+      fetch(`${this.formattedUrl}${path}`, {
         method: 'POST',
-      });
+      })
+        .then(requestErrorHandler)
+        .then(res => {
+          if (contentOnly) {
+            return res.json().then(json => json);
+          }
 
-      if (contentOnly) {
-        return res.json().then(json => json);
-      }
-
-      return res;
+          return res;
+        })
+        .catch((err) => {
+          this.$refs['err-dialog'].open(err);
+          throw err;
+        });
     },
 
     merge(payload) {
