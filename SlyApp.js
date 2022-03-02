@@ -45,7 +45,10 @@ function formatError(res, data = {}) {
 
 async function requestErrorHandler(res) {
   if (!res.ok) {
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {}
 
     throw formatError(res, data);
   }
@@ -254,7 +257,7 @@ Vue.component('sly-app', {
       })
       .catch((err) => {
         this.$refs['err-dialog'].open(err);
-        console.error(err);
+        throw err;
       });
     },
 
@@ -273,7 +276,6 @@ Vue.component('sly-app', {
         .then(res => res)
         .catch((err) => {
           this.$refs['err-dialog'].open(err);
-          console.error(err);
         });
     },
 
@@ -339,12 +341,6 @@ Vue.component('sly-app', {
     this.post.throttled = throttle(this.post, 1200);
 
     try {
-      this.sessionInfo = await this.getJson('/sly/session-info');
-
-      let taskId;
-      let apiToken;
-      let serverAddress;
-
       const rawUrl = new URL(this.url);
       let rawIntegrationData = rawUrl.searchParams.get('slyContext');
 
@@ -359,6 +355,12 @@ Vue.component('sly-app', {
           console.error(err);
         }
       }
+
+      this.sessionInfo = await this.getJson('/sly/session-info');
+
+      let taskId;
+      let apiToken;
+      let serverAddress;
 
       if (localStorage.token) {
         const tokenData = jwtDecode(localStorage.token);
@@ -396,19 +398,36 @@ Vue.component('sly-app', {
             this.data = data;
           }
 
-          if (integrationData.token) {
-            connectToSocket(serverAddress);
-            this.taskSocket = connectToSocket(serverAddress, 'tasks');
+          if (io) {
+            if (integrationData.token) {
+              connectToSocket(serverAddress);
+              this.taskSocket = connectToSocket(serverAddress, 'tasks');
 
-            this.taskSocket.on('changed:progress', this.updateTaskData);
+              this.taskSocket.on('changed:progress', this.updateTaskData);
+            }
+          } else {
+            console.warn('socket.io-client isn\'t available');
           }
         }
       }
 
       const stateRes = await this.getJson('/sly/state', false);
-      this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
-      this.state = await stateRes.json();
-      this.data = await this.getJson('/sly/data');
+      let state;
+
+      if (stateRes) {
+        this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
+        state = await stateRes.json();
+      }
+
+      const data = await this.getJson('/sly/data');
+
+      if (state) {
+        this.state = state;
+      }
+
+      if (data) {
+        this.data = data;
+      }
 
       if (this.publicApiInstance && taskId && serverAddress) {
         const initialState = {};
