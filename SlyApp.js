@@ -2,22 +2,52 @@ document.head.innerHTML += `<link type="text/css" rel="stylesheet" href="https:/
 
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
+import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
+const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
-function requestErrorHandler(res) {
-  console.dir(res);
+function connectToSocket(url, ...namespaces) {
+  const socket = io(`${url}/${namespaces.join('-')}`, {
+    path: '/api/ws',
+  });
+
+  socket.on('connect', () => {
+    socket.emit('authenticate', { token: localStorage.token });
+  }).on('unauthorized', () => {
+    socket.close();
+    setTimeout(() => { socket.open(); }, 5000);
+  });
+
+  return socket;
+}
+
+function formatError(res, data = {}) {
+  const err = new Error();
+
+  err.status = res.status;
+  err.title = res.statusText;
+  err.details = data.details || data.detail;
+
+  if (!err.details) {
+    err.details = {
+      message: 'Something went wrong',
+    };
+  } else if (typeof err.details !== 'object') {
+    const errMsg = err.details;
+    err.details = {
+      message: errMsg,
+    };
+  }
+
+  return err;
+}
+
+async function requestErrorHandler(res) {
   if (!res.ok) {
-    console.dir()
-    const err = new Error();
+    const data = await res.json();
 
-    err.status = res.status;
-    err.title = res.statusText;
-    err.details = res.details || { message: 'Something went wrong' };
-
-    console.dir(err);
-
-    throw err;
+    throw formatError(res, data);
   }
 
   return res;
@@ -58,17 +88,13 @@ function applyPatch(document, patch) {
 }
 
 Vue.component('sly-app-error', {
-  components: {
-    'el-dialog': Vue.options.components.ElDialog,
-  },
-
   template: `
 <div>
-  <el-dialog v-if="elementAvailable" v-model="visible" @close="onClose" :title="errorTitle">
-    <div class="fflex">
-      <i class="notification-box-icon zmdi zmdi-alert-triangle mr5" style="font-size: 25px; color: rgb(238, 131, 131);"></i>
+  <el-dialog v-if="elementAvailable" v-model="visible" @close="onClose" :title="errorTitle" size="tiny">
+    <div class="fflex" style="margin: -20px 0 -20px 0;">
+      <i class="notification-box-icon el-icon-information information mr15" style="font-size: 35px; color: #50bfff;"></i>
 
-      <span>
+      <span style="min-height: 35px; display: flex; align-items: center; word-break: break-word;">
         {{ errorMessage }}
       </span>
     </div>
@@ -116,8 +142,7 @@ Vue.component('sly-app-error', {
 
   methods: {
     open(err) {
-      console.dir(err);
-      if (!err.details.message) return;
+      if (!err?.details?.message) return;
       this.err = err;
       this.visible = true;
     },
@@ -144,7 +169,9 @@ Vue.component('sly-app', {
   template: `
 <div>
   <sly-app-error ref="err-dialog"></sly-app-error>
-  <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
+  <div ref="app-content">
+    <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
+  </div>
 </div>
   `,
 
@@ -158,19 +185,52 @@ Vue.component('sly-app', {
       context: {},
       ws: null,
       isDebugMode: false,
+      publicApiInstance: null,
+      appUrl: '',
     };
   },
 
   computed: {
     formattedUrl () {
-      return this.url.replace(/\/$/, '');
+      if (!this.appUrl) return '';
+      return this.appUrl.replace(/\/$/, '');
+    },
+  },
+
+  watch: {
+    'task.status': {
+      handler(newStatus) {
+        const isCompleted = completedAppStatusSet.has(newStatus);
+
+        if (!isCompleted) return;
+
+        this.$nextTick(() => {
+          this.$nextTick(() => {
+            const appEl = this.$refs['app-content'];
+            if (!appEl) return;
+
+            const elements = appEl.querySelectorAll('.el-button,.el-input,.el-input__inner,.el-textarea,.el-textarea__inner,.el-input-number,.el-radio__input,.el-radio__original,.el-switch,.el-switch__input,.el-slider__runway,.el-checkbox__input,.el-checkbox__original');
+
+            Array.prototype.slice.call(elements).forEach((el) => {
+              el.setAttribute('disabled', true);
+              el.classList.add('is-disabled');
+              el.classList.add('disabled');
+            });
+          });
+        });
+      },
     },
   },
 
   methods: {
     command(command, payload = {}) {
       console.log('Command!', command);
-      this.ws.send(JSON.stringify({ command: command, state: this.state, payload }));
+      this.ws.send(JSON.stringify({
+        command: command,
+        state: this.state,
+        context: this.context,
+        payload,
+      }));
     },
 
     post(command, payload = {}) {
@@ -194,29 +254,30 @@ Vue.component('sly-app', {
       })
       .catch((err) => {
         this.$refs['err-dialog'].open(err);
-        throw err;
+        console.error(err);
       });
     },
 
     async getJson(path, contentOnly = true) {
-      fetch(`${this.formattedUrl}${path}`, {
+      return fetch(`${this.formattedUrl}${path}`, {
         method: 'POST',
       })
         .then(requestErrorHandler)
         .then(res => {
           if (contentOnly) {
-            return res.json().then(json => json);
+            return res.json();
           }
 
           return res;
         })
+        .then(res => res)
         .catch((err) => {
           this.$refs['err-dialog'].open(err);
-          throw err;
+          console.error(err);
         });
     },
 
-    merge(payload) {
+    async merge(payload) {
       if (payload.state) {
         this.state = applyPatch(this.state, payload.state);
       }
@@ -224,10 +285,34 @@ Vue.component('sly-app', {
       if (payload.data) {
         this.data = applyPatch(this.data, payload.data);
       }
+
+      await this.saveTaskDataToDB(payload);
+    },
+
+    async saveTaskDataToDB(payload) {
+      if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
+
+      try {
+        await this.publicApiInstance.post('tasks.app-v2.data.set', {
+          taskId: this.task.id,
+          payload,
+        });
+      } catch (err) {
+        if (!this.$refs['err-dialog']) return;
+
+        const formattedErr = formatError(err.response, err.response?.data);
+        this.$refs['err-dialog'].open(formattedErr);
+      }
+    },
+
+    updateTaskData(payload) {
+      if (!this.task?.id || !payload[0].status) return;
+
+      this.task.status = payload[0].status;
     },
 
     connectToWs() {
-      this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.url.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly/ws`);
+      this.ws = new WebSocket(`ws${document.location.protocol === "https:" ? "s" : ""}://${this.appUrl.replace("http://", "").replace("https://", "").replace(/\/$/, '')}/sly/ws`);
 
       this.ws.onmessage = (event) => {
         console.log('Message received from Python', event);
@@ -237,12 +322,15 @@ Vue.component('sly-app', {
       this.ws.onopen = () => {
         clearInterval(this.wsTimerId);
 
-        this.ws.onclose = () => {
-          console.log('WS connection closed');
-          // this.wsTimerId = setInterval(() => {
-          //   this.connectToWs();
-          // }, 6000);
-        };
+        if (!this.isDebugMode) {
+          this.ws.onclose = () => {
+            console.log('WS connection closed');
+
+            this.wsTimerId = setInterval(() => {
+              this.connectToWs();
+            }, 8000);
+          };
+        }
       };
     }
   },
@@ -251,23 +339,96 @@ Vue.component('sly-app', {
     this.post.throttled = throttle(this.post, 1200);
 
     try {
-      const stateRes = await this.getJson('/sly/state', false);
-      this.isDebugMode = !!stateRes.headers['x-debug-mode'];
-      this.state = await stateRes.json().then(json => json);
-      this.data = await this.getJson('/sly/data');
       this.sessionInfo = await this.getJson('/sly/session-info');
 
-      if (sly.publicApiInstance) {
-        if (this.sessionInfo?.API_TOKEN) {
-          sly.publicApiInstance.defaults.headers.common['x-api-key'] = this.sessionInfo.API_TOKEN;
-        }
+      let taskId;
+      let apiToken;
+      let serverAddress;
 
-        if (sly.publicApiInstance && this.sessionInfo?.SERVER_ADDRESS) {
-          const { SERVER_ADDRESS } = this.sessionInfo;
-          sly.publicApiInstance.defaults.baseURL = `${SERVER_ADDRESS.endsWith('/') ? SERVER_ADDRESS.slice(0, -1) : SERVER_ADDRESS}/public/api/v3`;
+      const rawUrl = new URL(this.url);
+      let rawIntegrationData = rawUrl.searchParams.get('slyContext');
+
+      this.appUrl = `${rawUrl.origin}${rawUrl.pathname}`;
+
+      let integrationData = {};
+
+      if (rawIntegrationData) {
+        try {
+          integrationData = JSON.parse(rawIntegrationData);
+        } catch (err) {
+          console.error(err);
         }
       }
+
+      if (localStorage.token) {
+        const tokenData = jwtDecode(localStorage.token);
+        
+        integrationData.apiToken = tokenData.apiToken;
+        integrationData.token = localStorage.token;
+      }
+
+      if (this.sessionInfo?.SERVER_ADDRESS || this.integrationData?.serverAddress) {
+        serverAddress = this.sessionInfo?.SERVER_ADDRESS || this.integrationData.serverAddress;
+      }
+
+      if (sly.publicApiInstance && serverAddress) {
+        apiToken = integrationData?.apiToken || this.sessionInfo?.API_TOKEN;
+        serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
+
+        if (apiToken) {
+          this.context.apiToken = apiToken;
+          sly.publicApiInstance.defaults.headers.common['x-api-key'] = apiToken;
+        }
+
+        sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
+        this.publicApiInstance = sly.publicApiInstance;
+
+        taskId = this.sessionInfo.TASK_ID || integrationData.taskId;
+
+        if (taskId) {
+          this.task = await sly.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
+
+          const taskData = this.task?.settings?.customData;
+
+          if (taskData) {
+            const { state = {}, data = {} } = taskData;
+            this.state = state;
+            this.data = data;
+          }
+
+          if (integrationData.token) {
+            connectToSocket(serverAddress);
+            this.taskSocket = connectToSocket(serverAddress, 'tasks');
+
+            this.taskSocket.on('changed:progress', this.updateTaskData);
+          }
+        }
+      }
+
+      const stateRes = await this.getJson('/sly/state', false);
+      this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
+      this.state = await stateRes.json();
+      this.data = await this.getJson('/sly/data');
+
+      if (this.publicApiInstance && taskId && serverAddress) {
+        const initialState = {};
+
+        const stateKeys = Object.keys(this.state);
+
+        if (stateKeys?.length) {
+          initialState.state = stateKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.state[key] }));
+        }
+
+        const dataKeys = Object.keys(this.data);
+
+        if (dataKeys?.length) {
+          initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
+        }
+
+        await this.saveTaskDataToDB(initialState);
+      }
     } catch(err) {
+      throw err;
     } finally {
       this.loading = false;
     }
@@ -275,6 +436,16 @@ Vue.component('sly-app', {
     console.log('First Init WS');
     this.connectToWs();
   },
+
+  beforeDestroy() {
+    if (this.taskSocket) {
+      this.taskSocket.off('changed:progress', this.updateTaskData);
+    }
+
+    if (this.wsTimerId) {
+      clearInterval(this.wsTimerId);
+    }
+  }
 });
 
 window.slyApp = {
