@@ -356,7 +356,7 @@ Vue.component('sly-app', {
         }
       }
 
-      this.sessionInfo = await this.getJson('/sly/session-info');
+      this.sessionInfo = await this.getJson('/sly/session-info') || {};
 
       let taskId;
       let apiToken;
@@ -369,8 +369,8 @@ Vue.component('sly-app', {
         integrationData.token = localStorage.token;
       }
 
-      if (this.sessionInfo?.SERVER_ADDRESS || this.integrationData?.serverAddress) {
-        serverAddress = this.sessionInfo?.SERVER_ADDRESS || this.integrationData.serverAddress;
+      if (this.sessionInfo?.SERVER_ADDRESS || integrationData?.serverAddress) {
+        serverAddress = this.sessionInfo?.SERVER_ADDRESS || integrationData.serverAddress;
       }
 
       if (sly.publicApiInstance && serverAddress) {
@@ -385,7 +385,7 @@ Vue.component('sly-app', {
         sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
         this.publicApiInstance = sly.publicApiInstance;
 
-        taskId = this.sessionInfo.TASK_ID || integrationData.taskId;
+        taskId = this.sessionInfo?.TASK_ID || integrationData.taskId;
 
         if (taskId) {
           this.task = await sly.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
@@ -398,7 +398,7 @@ Vue.component('sly-app', {
             this.data = data;
           }
 
-          if (io) {
+          if (window.io) {
             if (integrationData.token) {
               connectToSocket(serverAddress);
               this.taskSocket = connectToSocket(serverAddress, 'tasks');
@@ -410,6 +410,8 @@ Vue.component('sly-app', {
           }
         }
       }
+
+      this.integrationData = integrationData;
 
       const stateRes = await this.getJson('/sly/state', false);
       let state;
