@@ -90,6 +90,26 @@ function applyPatch(document, patch) {
   return curDocument;
 }
 
+Vue.component('sly-html-compiler', {
+  props: ['template'],
+  computed: {
+    isHtml() {
+      return this.template && typeof this.template === 'string' && this.template.trim().startsWith('<');
+    },
+  },
+  render(createElement) {
+    if(this.isHtml) {
+      return Vue.compile(this.template).render.call(this, createElement);
+    } else {
+      // return `<template>${this.template}</template>`;
+      return this._v(this.template);
+    }
+  },
+  staticRenderFns(createElement) {
+    return Vue.compile(this.template).staticRenderFns.call(this, createElement);
+  },
+});
+
 Vue.component('sly-app-error', {
   template: `
 <div>
