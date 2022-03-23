@@ -92,22 +92,39 @@ function applyPatch(document, patch) {
 
 Vue.component('sly-html-compiler', {
   props: ['template', 'state', 'data', 'context'],
+  data() {
+    return {
+      templateRenderer: null,
+    };
+  },
   computed: {
     isHtml() {
       return this.template && typeof this.template === 'string' && this.template.trim().startsWith('<');
     },
   },
   render(createElement) {
+    if (!this.templateRenderer) return '';
+
     if(this.isHtml) {
-      return Vue.compile(this.template).render.call(this, createElement);
+      return this.templateRenderer.call(this, createElement);
     } else {
-      // return `<template>${this.template}</template>`;
       return this._v(this.template);
     }
   },
-  staticRenderFns(createElement) {
-    return Vue.compile(this.template).staticRenderFns.call(this, createElement);
-  },
+
+  watch: {
+    template: {
+      handler() {
+        if (!this.template) return;
+
+        const compiled = Vue.compile(this.template);
+        this.$options.staticRenderFns = compiled.staticRenderFns;
+
+        this.templateRenderer = compiled.render;
+      },
+      immediate: true,
+    },
+  }
 });
 
 Vue.component('sly-app-error', {
