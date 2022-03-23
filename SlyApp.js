@@ -91,7 +91,7 @@ function applyPatch(document, patch) {
 }
 
 Vue.component('sly-html-compiler', {
-  props: ['template', 'state', 'data', 'context'],
+  props: ['template', 'state', 'data', 'context', 'params'],
   data() {
     return {
       templateRenderer: null,
