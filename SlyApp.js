@@ -91,7 +91,7 @@ function applyPatch(document, patch) {
 }
 
 Vue.component('sly-html-compiler', {
-  props: ['template'],
+  props: ['template', 'state', 'data', 'context'],
   computed: {
     isHtml() {
       return this.template && typeof this.template === 'string' && this.template.trim().startsWith('<');
