@@ -73,7 +73,7 @@ function applyPatch(document, patch) {
       }
 
       if (typeof parentObject !== 'object') {
-        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
         return;
       };
 
@@ -83,7 +83,7 @@ function applyPatch(document, patch) {
         Vue.delete(parentObject, propName);
       }
     } else {
-      curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+      curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
     }
   });
 
