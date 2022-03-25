@@ -73,17 +73,18 @@ function applyPatch(document, patch) {
       }
 
       if (typeof parentObject !== 'object') {
-        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
         return;
       };
 
       if (operation.op === 'add' || operation.op === 'replace') {
         Vue.set(parentObject, propName, operation.value);
+        curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
       } else {
         Vue.delete(parentObject, propName);
       }
     } else {
-      curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+      curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
     }
   });
 
@@ -371,7 +372,7 @@ Vue.component('sly-app', {
           };
         }
       };
-    }
+    }, 
   },
 
   async created() {
