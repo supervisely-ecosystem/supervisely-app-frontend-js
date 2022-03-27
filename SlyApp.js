@@ -73,18 +73,18 @@ function applyPatch(document, patch) {
       }
 
       if (typeof parentObject !== 'object') {
-        curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
+        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
         return;
       };
 
       if (operation.op === 'add' || operation.op === 'replace') {
+        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
         Vue.set(parentObject, propName, operation.value);
-        curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
       } else {
         Vue.delete(parentObject, propName);
       }
     } else {
-      curDocument = jsonpatch.applyOperation(document, operation, false, false, false).newDocument;
+      curDocument = jsonpatch.applyOperation(document, operation).newDocument;
     }
   });
 
