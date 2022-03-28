@@ -228,6 +228,7 @@ Vue.component('sly-app', {
       isDebugMode: false,
       publicApiInstance: null,
       appUrl: '',
+      stateObserver: '',
     };
   },
 
@@ -264,8 +265,11 @@ Vue.component('sly-app', {
   },
 
   methods: {
-    command(command, payload = {}) {
+    async command(command, payload = {}) {
       console.log('Command!', command);
+
+      await this.sendStatePatchToApi();
+
       this.ws.send(JSON.stringify({
         command: command,
         state: this.state,
@@ -274,8 +278,18 @@ Vue.component('sly-app', {
       }));
     },
 
-    post(command, payload = {}) {
+    async sendStatePatchToApi() {
+      const payload = {
+        state: jsonpatch.generate(this.stateObserver),
+      };
+
+      await this.saveTaskDataToDB(payload);
+    },
+
+    async post(command, payload = {}) {
       console.log('Http!', command);
+
+      await this.sendStatePatchToApi();
 
       fetch(`${this.formattedUrl}${command}`, {
           method: 'POST',
@@ -486,6 +500,8 @@ Vue.component('sly-app', {
 
         await this.saveTaskDataToDB(initialState);
       }
+
+      this.stateObserver = jsonpatch.observe(this.state);
     } catch(err) {
       throw err;
     } finally {
