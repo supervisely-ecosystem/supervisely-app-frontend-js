@@ -280,7 +280,7 @@ Vue.component('sly-app', {
 
     async sendStatePatchToApi() {
       const payload = {
-        state: jsonpatch.generate(this.stateObserver),
+        state: this.state,
       };
 
       await this.saveTaskDataToDB(payload);
@@ -349,7 +349,10 @@ Vue.component('sly-app', {
       try {
         await this.publicApiInstance.post('tasks.app-v2.data.set', {
           taskId: this.task.id,
-          payload,
+          payload: {
+            ...payload,
+            state: this.state,
+          },
         });
       } catch (err) {
         if (!this.$refs['err-dialog']) return;
