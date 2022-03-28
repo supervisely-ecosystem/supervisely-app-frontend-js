@@ -78,7 +78,9 @@ function applyPatch(document, patch) {
       };
 
       if (operation.op === 'add' || operation.op === 'replace') {
-        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        if (Array.isArray(parentObject)) {
+          curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        }
         Vue.set(parentObject, propName, operation.value);
       } else {
         Vue.delete(parentObject, propName);
