@@ -5,7 +5,7 @@ import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
-const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
+const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
 function connectToSocket(url, ...namespaces) {
@@ -82,12 +82,29 @@ function applyPatch(document, patch) {
         return;
       };
 
-      if (operation.op === 'add' || operation.op === 'replace') {
+      if (operation.op === 'add' || operation.op === 'replace' || operation.op === 'move') {
         // if (Array.isArray(parentObject)) {
         //   curDocument = jsonpatch.applyOperation(document, operation).newDocument;
         // }
         Vue.set(parentObject, propName, operation.value);
         console.log('> 2:', cloneDeep(curDocument));
+
+        if (operation.op === 'move') {
+          const pathPartsFrom = operation.from.split('/');
+          const propNameFrom = pathPartsFrom.splice(-1)[0];
+
+          let parentObjectFrom;
+
+          if (pathParts.length > 1) {
+            parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
+          } else {
+            parentObjectFrom = curDocument;
+          }
+
+          Vue.delete(parentObjectFrom, propNameFrom);
+          console.log('> 2.1:', pathPartsFrom, parentObjectFrom);
+          console.log('> 2.2:', cloneDeep(curDocument));
+        }
       } else {
         Vue.delete(parentObject, propName);
         console.log('> 3:', cloneDeep(curDocument));
