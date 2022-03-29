@@ -2,6 +2,7 @@ document.head.innerHTML += `<link type="text/css" rel="stylesheet" href="https:/
 
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.0/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
+import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
@@ -60,6 +61,7 @@ function applyPatch(document, patch) {
   let curDocument = document;
 
   patch.forEach((operation) => {
+    console.log('> operation:', operation.op, operation);
     if (vuePatchOptsSet.has(operation.op)) {
       const pathParts = operation.path.split('/');
       const propName = pathParts.splice(-1)[0];
@@ -72,21 +74,27 @@ function applyPatch(document, patch) {
         parentObject = curDocument;
       }
 
+      console.log('> parentObject:', cloneDeep(parentObject));
+
       if (typeof parentObject !== 'object') {
         curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        console.log('> 1:', cloneDeep(curDocument));
         return;
       };
 
       if (operation.op === 'add' || operation.op === 'replace') {
-        if (Array.isArray(parentObject)) {
-          curDocument = jsonpatch.applyOperation(document, operation).newDocument;
-        }
+        // if (Array.isArray(parentObject)) {
+        //   curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+        // }
         Vue.set(parentObject, propName, operation.value);
+        console.log('> 2:', cloneDeep(curDocument));
       } else {
         Vue.delete(parentObject, propName);
+        console.log('> 3:', cloneDeep(curDocument));
       }
     } else {
       curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+      console.log('> 4:', cloneDeep(curDocument));
     }
   });
 
