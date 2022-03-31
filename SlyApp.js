@@ -5,8 +5,8 @@ import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
-// const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move']);
-const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
+const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move']);
+// const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
 function connectToSocket(url, ...namespaces) {
@@ -77,34 +77,45 @@ function applyPatch(document, patch) {
 
       console.log('> parentObject:', cloneDeep(parentObject));
 
-      if (typeof parentObject !== 'object' || (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
+      // if (typeof parentObject !== 'object' || (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
+      if (typeof parentObject !== 'object') {
         curDocument = jsonpatch.applyOperation(document, operation).newDocument;
         console.log('> 1:', cloneDeep(curDocument));
         return;
       };
 
-      // if (operation.op === 'add' || operation.op === 'replace' || operation.op === 'move') {
       if (operation.op === 'add' || operation.op === 'replace') {
-        Vue.set(parentObject, propName, operation.value);
+        if (operation.op === 'add' && Array.isArray(parentObject)) {
+          parentObject.splice(propName, 0, operation.value);
+        } else {
+          Vue.set(parentObject, propName, operation.value);
+        }
         console.log('> 2:', cloneDeep(curDocument));
+      } else if (operation.op === 'move') {
 
-        // if (operation.op === 'move') {
-        //   const pathPartsFrom = operation.from.split('/');
-        //   const propNameFrom = pathPartsFrom.splice(-1)[0];
+        console.log('==============================1');
+          const pathPartsFrom = operation.from.split('/');
+          const propNameFrom = pathPartsFrom.splice(-1)[0];
 
-        //   let parentObjectFrom;
+          let parentObjectFrom;
 
-        //   if (pathParts.length > 1) {
-        //     parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
-        //   } else {
-        //     parentObjectFrom = curDocument;
-        //   }
+          if (pathParts.length > 1) {
+            parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
+          } else {
+            parentObjectFrom = curDocument;
+          }
 
-        //   console.log('> 2.1:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-        //   // Vue.delete(parentObjectFrom, propNameFrom);
-        //   console.log('> 2.2:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-        //   console.log('> 2.3:', cloneDeep(curDocument));
-        // }
+          const moveValue = jsonpatch.getValueByPointer(curDocument, operation.from);
+          console.log('==============================1.1', operation.from, cloneDeep(parentObjectFrom), moveValue);
+          console.log('==============================1.2', operation.path, cloneDeep(parentObject), moveValue);
+
+          Vue.set(parentObject, propName, moveValue);
+          console.log('==============================2', operation.from, operation.path, moveValue);
+
+          console.log('> 2.1:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+          Vue.delete(parentObjectFrom, propNameFrom);
+          console.log('> 2.2:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+          console.log('> 2.3:', cloneDeep(curDocument));
       } else {
         Vue.delete(parentObject, propName);
         console.log('> 3:', cloneDeep(curDocument));
@@ -239,6 +250,7 @@ Vue.component('sly-app', {
   <sly-app-error ref="err-dialog"></sly-app-error>
   <div ref="app-content">
     <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
+    <!--<el-button @click="test">Apply</el-button>-->
   </div>
 </div>
   `,
