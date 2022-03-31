@@ -61,72 +61,73 @@ async function requestErrorHandler(res) {
 function applyPatch(document, patch) {
   let curDocument = document;
 
-  patch.forEach((operation) => {
-    console.log('> operation:', operation.op, operation);
-    if (vuePatchOptsSet.has(operation.op)) {
-      const pathParts = operation.path.split('/');
-      const propName = pathParts.splice(-1)[0];
+  // patch.forEach((operation) => {
+  //   console.log('> operation:', operation.op, operation);
+  //   if (vuePatchOptsSet.has(operation.op)) {
+  //     const pathParts = operation.path.split('/');
+  //     const propName = pathParts.splice(-1)[0];
 
-      let parentObject;
+  //     let parentObject;
 
-      if (pathParts.length > 1) {
-        parentObject = jsonpatch.getValueByPointer(curDocument, pathParts.join('/'));
-      } else {
-        parentObject = curDocument;
-      }
+  //     if (pathParts.length > 1) {
+  //       parentObject = jsonpatch.getValueByPointer(curDocument, pathParts.join('/'));
+  //     } else {
+  //       parentObject = curDocument;
+  //     }
 
-      console.log('> parentObject:', cloneDeep(parentObject));
+  //     console.log('> parentObject:', cloneDeep(parentObject));
 
-      // if (typeof parentObject !== 'object' || (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
-      if (typeof parentObject !== 'object') {
-        curDocument = jsonpatch.applyOperation(document, operation).newDocument;
-        console.log('> 1:', cloneDeep(curDocument));
-        return;
-      };
+  //     // if (typeof parentObject !== 'object' || (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
+  //     if (typeof parentObject !== 'object') {
+  //       curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+  //       console.log('> 1:', cloneDeep(curDocument));
+  //       return;
+  //     };
 
-      if (operation.op === 'add' || operation.op === 'replace') {
-        if (operation.op === 'add' && Array.isArray(parentObject)) {
-          parentObject.splice(propName, 0, operation.value);
-        } else {
-          Vue.set(parentObject, propName, operation.value);
-        }
-        console.log('> 2:', cloneDeep(curDocument));
-      } else if (operation.op === 'move') {
+  //     if (operation.op === 'add' || operation.op === 'replace') {
+  //       if (operation.op === 'add' && Array.isArray(parentObject)) {
+  //         parentObject.splice(propName, 0, operation.value);
+  //       } else {
+  //         Vue.set(parentObject, propName, operation.value);
+  //       }
+  //       console.log('> 2:', cloneDeep(curDocument));
+  //     } else if (operation.op === 'move') {
 
-        console.log('==============================1');
-          const pathPartsFrom = operation.from.split('/');
-          const propNameFrom = pathPartsFrom.splice(-1)[0];
+  //       console.log('==============================1');
+  //         const pathPartsFrom = operation.from.split('/');
+  //         const propNameFrom = pathPartsFrom.splice(-1)[0];
 
-          let parentObjectFrom;
+  //         let parentObjectFrom;
 
-          if (pathParts.length > 1) {
-            parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
-          } else {
-            parentObjectFrom = curDocument;
-          }
+  //         if (pathParts.length > 1) {
+  //           parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
+  //         } else {
+  //           parentObjectFrom = curDocument;
+  //         }
 
-          const moveValue = jsonpatch.getValueByPointer(curDocument, operation.from);
-          console.log('==============================1.1', operation.from, cloneDeep(parentObjectFrom), moveValue);
-          console.log('==============================1.2', operation.path, cloneDeep(parentObject), moveValue);
+  //         const moveValue = jsonpatch.getValueByPointer(curDocument, operation.from);
+  //         console.log('==============================1.1', operation.from, cloneDeep(parentObjectFrom), moveValue);
+  //         console.log('==============================1.2', operation.path, cloneDeep(parentObject), moveValue);
 
-          Vue.set(parentObject, propName, moveValue);
-          console.log('==============================2', operation.from, operation.path, moveValue);
+  //         Vue.set(parentObject, propName, moveValue);
+  //         console.log('==============================2', operation.from, operation.path, moveValue);
 
-          console.log('> 2.1:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-          Vue.delete(parentObjectFrom, propNameFrom);
-          console.log('> 2.2:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-          console.log('> 2.3:', cloneDeep(curDocument));
-      } else {
-        Vue.delete(parentObject, propName);
-        console.log('> 3:', cloneDeep(curDocument));
-      }
-    } else {
-      curDocument = jsonpatch.applyOperation(document, operation).newDocument;
-      console.log('> 4:', cloneDeep(curDocument));
-    }
-  });
+  //         console.log('> 2.1:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+  //         Vue.delete(parentObjectFrom, propNameFrom);
+  //         console.log('> 2.2:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+  //         console.log('> 2.3:', cloneDeep(curDocument));
+  //     } else {
+  //       Vue.delete(parentObject, propName);
+  //       console.log('> 3:', cloneDeep(curDocument));
+  //     }
+  //   } else {
+  //     curDocument = jsonpatch.applyOperation(document, operation).newDocument;
+  //     console.log('> 4:', cloneDeep(curDocument));
+  //   }
+  // });
 
-  return curDocument;
+  // return curDocument;
+  return jsonpatch.applyPatch(document, patch).newDocument;
 }
 
 Vue.component('sly-html-compiler', {
@@ -378,11 +379,11 @@ Vue.component('sly-app', {
 
     async merge(payload) {
       if (payload.state) {
-        this.state = applyPatch(this.state, payload.state);
+        this.state = cloneDeep(applyPatch(this.state, payload.state));
       }
 
       if (payload.data) {
-        this.data = applyPatch(this.data, payload.data);
+        this.data = cloneDeep(applyPatch(this.data, payload.data));
       }
 
       console.log('==========', JSON.stringify(this.state));
