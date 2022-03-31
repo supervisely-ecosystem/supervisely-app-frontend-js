@@ -5,8 +5,6 @@ import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
-const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move']);
-// const vuePatchOptsSet = new Set(['add', 'remove', 'replace']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
 function connectToSocket(url, ...namespaces) {
@@ -59,75 +57,7 @@ async function requestErrorHandler(res) {
 }
 
 function applyPatch(document, patch) {
-  let curDocument = document;
-
-  // patch.forEach((operation) => {
-  //   console.log('> operation:', operation.op, operation);
-  //   if (vuePatchOptsSet.has(operation.op)) {
-  //     const pathParts = operation.path.split('/');
-  //     const propName = pathParts.splice(-1)[0];
-
-  //     let parentObject;
-
-  //     if (pathParts.length > 1) {
-  //       parentObject = jsonpatch.getValueByPointer(curDocument, pathParts.join('/'));
-  //     } else {
-  //       parentObject = curDocument;
-  //     }
-
-  //     console.log('> parentObject:', cloneDeep(parentObject));
-
-  //     // if (typeof parentObject !== 'object' || (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
-  //     if (typeof parentObject !== 'object') {
-  //       curDocument = jsonpatch.applyOperation(document, operation).newDocument;
-  //       console.log('> 1:', cloneDeep(curDocument));
-  //       return;
-  //     };
-
-  //     if (operation.op === 'add' || operation.op === 'replace') {
-  //       if (operation.op === 'add' && Array.isArray(parentObject)) {
-  //         parentObject.splice(propName, 0, operation.value);
-  //       } else {
-  //         Vue.set(parentObject, propName, operation.value);
-  //       }
-  //       console.log('> 2:', cloneDeep(curDocument));
-  //     } else if (operation.op === 'move') {
-
-  //       console.log('==============================1');
-  //         const pathPartsFrom = operation.from.split('/');
-  //         const propNameFrom = pathPartsFrom.splice(-1)[0];
-
-  //         let parentObjectFrom;
-
-  //         if (pathParts.length > 1) {
-  //           parentObjectFrom = jsonpatch.getValueByPointer(curDocument, pathPartsFrom.join('/'));
-  //         } else {
-  //           parentObjectFrom = curDocument;
-  //         }
-
-  //         const moveValue = jsonpatch.getValueByPointer(curDocument, operation.from);
-  //         console.log('==============================1.1', operation.from, cloneDeep(parentObjectFrom), moveValue);
-  //         console.log('==============================1.2', operation.path, cloneDeep(parentObject), moveValue);
-
-  //         Vue.set(parentObject, propName, moveValue);
-  //         console.log('==============================2', operation.from, operation.path, moveValue);
-
-  //         console.log('> 2.1:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-  //         Vue.delete(parentObjectFrom, propNameFrom);
-  //         console.log('> 2.2:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-  //         console.log('> 2.3:', cloneDeep(curDocument));
-  //     } else {
-  //       Vue.delete(parentObject, propName);
-  //       console.log('> 3:', cloneDeep(curDocument));
-  //     }
-  //   } else {
-  //     curDocument = jsonpatch.applyOperation(document, operation).newDocument;
-  //     console.log('> 4:', cloneDeep(curDocument));
-  //   }
-  // });
-
-  // return curDocument;
-  return jsonpatch.applyPatch(document, patch).newDocument;
+  return cloneDeep(jsonpatch.applyPatch(document, patch).newDocument);
 }
 
 Vue.component('sly-html-compiler', {
@@ -251,7 +181,6 @@ Vue.component('sly-app', {
   <sly-app-error ref="err-dialog"></sly-app-error>
   <div ref="app-content">
     <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
-    <!--<el-button @click="test">Apply</el-button>-->
   </div>
 </div>
   `,
@@ -305,12 +234,6 @@ Vue.component('sly-app', {
   },
 
   methods: {
-    test() {
-      this.merge({
-        state:[{'op': 'add', 'path': '/widgets/SmartTool/0008/scaledBbox/0/0', 'value': 301}, {'op': 'add', 'path': '/widgets/SmartTool/0008/scaledBbox/0/1', 'value': 288}, {'op': 'replace', 'path': '/widgets/SmartTool/0008/scaledBbox/1/0', 'value': 531}, {'op': 'replace', 'path': '/widgets/SmartTool/0008/scaledBbox/1/1', 'value': 617}, {'op': 'replace', 'path': '/widgets/SmartTool/0001/scaledBbox/0/0', 'value': 434}, {'op': 'replace', 'path': '/widgets/SmartTool/0001/scaledBbox/0/1', 'value': 305}, {'op': 'add', 'path': '/widgets/SmartTool/0001/scaledBbox/1/0', 'value': 689}, {'op': 'remove', 'path': '/widgets/SmartTool/0001/scaledBbox/1/2'}, {'op': 'add', 'path': '/widgets/SmartTool/0001/scaledBbox/1/1', 'value': 652}, {'op': 'replace', 'path': '/widgets/SmartTool/0007/scaledBbox/0/0', 'value': 274}, {'op': 'replace', 'path': '/widgets/SmartTool/0007/scaledBbox/0/1', 'value': 218}, {'op': 'replace', 'path': '/widgets/SmartTool/0007/scaledBbox/1/0', 'value': 501}, {'op': 'replace', 'path': '/widgets/SmartTool/0007/scaledBbox/1/1', 'value': 556}, {'op': 'replace', 'path': '/widgets/SmartTool/0002/scaledBbox/0/0', 'value': 184}, {'op': 'replace', 'path': '/widgets/SmartTool/0002/scaledBbox/0/1', 'value': 148}, {'op': 'replace', 'path': '/widgets/SmartTool/0002/scaledBbox/1/0', 'value': 403}, {'op': 'replace', 'path': '/widgets/SmartTool/0002/scaledBbox/1/1', 'value': 547}, {'op': 'replace', 'path': '/widgets/SmartTool/0006/scaledBbox/0/0', 'value': 234}, {'op': 'remove', 'path': '/widgets/SmartTool/0006/scaledBbox/0/1'}, {'op': 'move', 'from': '/widgets/SmartTool/0008/scaledBbox/0/3', 'path': '/widgets/SmartTool/0006/scaledBbox/0/1'}, {'op': 'replace', 'path': '/widgets/SmartTool/0006/scaledBbox/1/0', 'value': 489}, {'op': 'replace', 'path': '/widgets/SmartTool/0006/scaledBbox/1/1', 'value': 591}, {'op': 'replace', 'path': '/widgets/SmartTool/0000/scaledBbox/0/0', 'value': 443}, {'op': 'replace', 'path': '/widgets/SmartTool/0000/scaledBbox/0/1', 'value': 109}, {'op': 'replace', 'path': '/widgets/SmartTool/0000/scaledBbox/1/0', 'value': 692}, {'op': 'replace', 'path': '/widgets/SmartTool/0000/scaledBbox/1/1', 'value': 489}, {'op': 'replace', 'path': '/widgets/SmartTool/0005/scaledBbox/0/0', 'value': 260}, {'op': 'remove', 'path': '/widgets/SmartTool/0005/scaledBbox/0/1'}, {'op': 'move', 'from': '/widgets/SmartTool/0008/scaledBbox/0/2', 'path': '/widgets/SmartTool/0005/scaledBbox/0/1'}, {'op': 'replace', 'path': '/widgets/SmartTool/0005/scaledBbox/1/0', 'value': 483}, {'op': 'replace', 'path': '/widgets/SmartTool/0005/scaledBbox/1/1', 'value': 659}, {'op': 'replace', 'path': '/widgets/SmartTool/0009/scaledBbox/0/0', 'value': 169}, {'op': 'replace', 'path': '/widgets/SmartTool/0009/scaledBbox/0/1', 'value': 168}, {'op': 'replace', 'path': '/widgets/SmartTool/0009/scaledBbox/1/0', 'value': 415}, {'op': 'replace', 'path': '/widgets/SmartTool/0009/scaledBbox/1/1', 'value': 477}, {'op': 'replace', 'path': '/widgets/SmartTool/0004/scaledBbox/0/0', 'value': 201}, {'op': 'replace', 'path': '/widgets/SmartTool/0004/scaledBbox/0/1', 'value': 93}, {'op': 'replace', 'path': '/widgets/SmartTool/0004/scaledBbox/1/0', 'value': 432}, {'op': 'replace', 'path': '/widgets/SmartTool/0004/scaledBbox/1/1', 'value': 443}, {'op': 'replace', 'path': '/widgets/SmartTool/0003/scaledBbox/0/0', 'value': 455}, {'op': 'replace', 'path': '/widgets/SmartTool/0003/scaledBbox/0/1', 'value': 255}, {'op': 'remove', 'path': '/widgets/SmartTool/0003/scaledBbox/1/0'}, {'op': 'move', 'from': '/widgets/SmartTool/0001/scaledBbox/1/2', 'path': '/widgets/SmartTool/0003/scaledBbox/1/0'}, {'op': 'replace', 'path': '/widgets/SmartTool/0003/scaledBbox/1/1', 'value': 628}],
-      });
-    },
-
     async command(command, payload = {}) {
       console.log('Command!', command);
 
@@ -379,14 +302,12 @@ Vue.component('sly-app', {
 
     async merge(payload) {
       if (payload.state) {
-        this.state = cloneDeep(applyPatch(this.state, payload.state));
+        this.state = applyPatch(this.state, payload.state);
       }
 
       if (payload.data) {
-        this.data = cloneDeep(applyPatch(this.data, payload.data));
+        this.data = applyPatch(this.data, payload.data);
       }
-
-      console.log('==========', JSON.stringify(this.state));
 
       await this.saveTaskDataToDB(payload);
     },
@@ -551,8 +472,6 @@ Vue.component('sly-app', {
 
         await this.saveTaskDataToDB(initialState);
       }
-
-      // this.state = {'widgets': {'SmartTool': {'0000': {'identifier': '0000', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/k/6/3r/M7uD41QMNo4vdBn0ghawUhBnuS7kVrTDBTZsUtqSNVTBXNYVbkcmYbxOim78mDJuJq7AmtBNl42IUQmcSCWYrKn4sGuSF5aGqP5o8likSyiQSjE8akrHObKqzxax.png', 'imageHash': 'Krji9khnu2H/+wSXit6F1ybt96Zfu7bU1dhelIosgFs=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[451, 121], [684, 477]], 'scaledBbox': [[445, 111], [690, 487]], 'mask': null, 'isActive': true, 'slyId': 58030161, 'needsAnUpdate': false}, '0001': {'identifier': '0001', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/w/t/XO/IL94JuOz0S60JGInPpXYHDaYsC4nIZ9eKJ6kWNlzl8VA2Mh2poUaAtjcdCcKZ8e1ZVBtFfNCNYJ1z1U5MjeyAlOx9slU87J90N9zcsuBuXrwoi98dv2c3QSZBOro.png', 'imageHash': 'FzgKpcuPo7EjxHFCfZvhOlS1OaGydcYG2K4l9UqBbBU=', 'imageSize': [1008, 756], 'datasetName': 'Test', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[442, 316], [681, 641]], 'scaledBbox': [[435, 307], [688, 650]], 'mask': null, 'isActive': true, 'slyId': 58032974, 'needsAnUpdate': false}, '0002': {'identifier': '0002', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/v/n/3o/vRW6Wa3So7BEx7hF2xFdUOisY3o4t9HVL8ygqp2MkeMQScqlf9AMcIkDMd8hkb0pj1q7NTwELPhVeDMZv9T3eJX24Y1WVw3fmXtkLJlndPsvGB5NRFFmWI16Im0H.png', 'imageHash': '2aDlJO2OLzV5hW5HMx80NEh5DIHvvWsCTcZ9DaXtcjc=', 'imageSize': [1008, 756], 'datasetName': 'Test', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[191, 161], [396, 534]], 'scaledBbox': [[185, 150], [402, 545]], 'mask': null, 'isActive': true, 'slyId': 58032947, 'needsAnUpdate': false}, '0003': {'identifier': '0003', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/z/Z/kw/Yr4LANPj1ZwSMhc2ndG32KVhzegiepXSmGxjsfAmHkAEgxd8xji2sr7O1LbyF71qoUgCH5gIiIAuPX5lch2waGSQfKj4hSMYWPcGll0aExwFJmdviIvcYdFwIZsz.png', 'imageHash': 'prHb83oobtg/gZXYmGUlE7TdllhD0RbtAdrLugnPebM=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[462, 267], [681, 616]], 'scaledBbox': [[456, 257], [687, 626]], 'mask': null, 'isActive': true, 'slyId': 58029883, 'needsAnUpdate': false}, '0004': {'identifier': '0004', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/0/o/Wn/PsRQAeOKW5HejOsktnMbRni3t5Y4338ZLHhIHEdNtVp0O0QNaBGpHo79d2qCXqkVVNGR3f7LAfZVzSFEVFU8K0GvCMwKONUNxovDuNxqkeo7SDckcq3wnNF3Qstd.png', 'imageHash': 'qmexHaqop5EwgBnom9VCU6KBPci2oB8/wn3bgraME10=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[208, 104], [425, 432]], 'scaledBbox': [[202, 95], [431, 441]], 'mask': null, 'isActive': true, 'slyId': 58031645, 'needsAnUpdate': false}, '0005': {'identifier': '0005', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/Q/N/OG/ZwcXbT4SsHaTbiUxKCpZdjldutIgoSPBIBAWEcizAnXxlYimsL7jxlE8qRVTbj72ryxLTCdazhIOsPjgItUxNl5RP3hNjCrNEnM9cGqA2RwSF64kGtBSdkIhNG0O.png', 'imageHash': 'sOvlmCbWsPVg6xLFjBaAnBmqklC+EViT7aQMc1VXujU=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[267, 313], [476, 648]], 'scaledBbox': [[261, 303], [482, 658]], 'mask': null, 'isActive': true, 'slyId': 58032297, 'needsAnUpdate': false}, '0006': {'identifier': '0006', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/a/R/9i/YHwK1ERp2oBczF0xgRBhudanatRInXbKM6oCle7Q7vEE8rvgskEFixo67L2zpSy3j0Za1c5V64TspNGSURcO4KVY8suNAbprUVDHC24DcC9JgdY7uP0dDbHQwUOE.png', 'imageHash': '2Uw3LenDRqWmelxWKhVJkbaN/YNYFTfMTSCFLVLT/xA=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[242, 298], [481, 582]], 'scaledBbox': [[235, 290], [488, 590]], 'mask': null, 'isActive': true, 'slyId': 58032001, 'needsAnUpdate': false}, '0007': {'identifier': '0007', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/l/d/qm/lt6wLBNuoimPgiNMguDpXUGwmoc8LhSRotgZwXyk8lpoZAVwMCc2u335WRib6FGCDP2wn9AjiAKHk77Sq7CCbJSPbqpy7946JbhazS8J6X2iXoSIXIqFh0YAtPv6.png', 'imageHash': 'x2KmMSPC8r2nnY+ZyZUhuuxSEyMc2L2I2wQfz/DBJ1k=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[281, 229], [494, 545]], 'scaledBbox': [[275, 220], [500, 554]], 'mask': null, 'isActive': true, 'slyId': 58030363, 'needsAnUpdate': false}, '0008': {'identifier': '0008', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/9/j/Zm/pR6It9cVo4CvLkxLiQL5NTVwrAzoe0x8EfbRwEsxdvq5sl25HpMeXY0IeC3yrWKIOgeyt3u291WT3wkVLom9391BfFfFsm7egYqYbv4ol8aTmPag7K5FLtmUM2HY.png', 'imageHash': 'bP0fO1v01z2+9jlsw7fD8yDYjw3a0ZAf1LBa2bh6VDw=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[308, 298], [524, 607]], 'scaledBbox': [[302, 289], [530, 616]], 'mask': null, 'isActive': true, 'slyId': 58029540, 'needsAnUpdate': false}, '0009': {'identifier': '0009', 'imageUrl': 'https://supervisely-dev.deepsystems.io/h5un6l2bnaz1vj8a9qgms4-public/images/original/k/6/3r/M7uD41QMNo4vdBn0ghawUhBnuS7kVrTDBTZsUtqSNVTBXNYVbkcmYbxOim78mDJuJq7AmtBNl42IUQmcSCWYrKn4sGuSF5aGqP5o8likSyiQSjE8akrHObKqzxax.png', 'imageHash': 'Krji9khnu2H/+wSXit6F1ybt96Zfu7bU1dhelIosgFs=', 'imageSize': [1008, 756], 'datasetName': 'Train', 'positivePoints': [], 'negativePoints': [], 'originalBbox': [[177, 178], [407, 467]], 'scaledBbox': [[171, 170], [413, 475]], 'mask': null, 'isActive': true, 'slyId': 58030159, 'needsAnUpdate': false}}}}
 
       this.stateObserver = jsonpatch.observe(this.state);
     } catch(err) {
