@@ -365,7 +365,6 @@ Vue.component('sly-app', {
     }, 
 
     hotkeysHandler(e) {
-      e.preventDefault();
       const k = this.hotkeys.filter(h => h.keyCode === e.keyCode);
       let hotkey;
       
