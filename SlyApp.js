@@ -57,7 +57,7 @@ async function requestErrorHandler(res) {
 }
 
 function applyPatch(document, patch) {
-  return cloneDeep(jsonpatch.applyPatch(document, patch).newDocument);
+  return cloneDeep(jsonpatch.applyPatch(cloneDeep(document), patch).newDocument);
 }
 
 Vue.component('sly-html-compiler', {
