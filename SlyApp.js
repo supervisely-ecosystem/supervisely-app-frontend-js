@@ -173,7 +173,11 @@ Vue.component('sly-app', {
     url: {
       type: String,
       default: document.location.href,
-    }
+    },
+    hotkeys: {
+      type: Array,
+      default: () => [],
+    },
   },
 
   template: `
@@ -359,6 +363,27 @@ Vue.component('sly-app', {
         }
       };
     }, 
+
+    hotkeysHandler(e) {
+      e.preventDefault();
+      const k = this.hotkeys.filter(h => h.keyCode === e.keyCode);
+      let hotkey;
+      
+      for(let i = 0; i < k.length; i++) {
+        const curK = k[i];
+
+        curK.modifiers.forEach((mod) => {
+          if (!e[`${mod}Key`]) return;
+        });
+
+        hotkey = curK;
+        break;
+      }
+
+      if (hotkey) {
+        hotkey.handler({ state: this.state, data: this.data, command: this.command, post: this.post });
+      }
+    },
   },
 
   async created() {
@@ -473,6 +498,8 @@ Vue.component('sly-app', {
         await this.saveTaskDataToDB(initialState);
       }
 
+      document.addEventListener('keypress', this.hotkeysHandler);
+
       this.stateObserver = jsonpatch.observe(this.state);
     } catch(err) {
       throw err;
@@ -492,6 +519,8 @@ Vue.component('sly-app', {
     if (this.wsTimerId) {
       clearInterval(this.wsTimerId);
     }
+
+    document.removeEventListener('keypress', this.hotkeysHandler);
   }
 });
 

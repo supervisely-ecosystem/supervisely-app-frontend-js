@@ -13,7 +13,10 @@
     <script src="./SlyApp.js" type="module"></script>
 
     <div id="sly-app">
-      <sly-app>
+      <sly-app
+        url="http://168.119.137.55:8088/net/_v5YNYt_lvVqdwZQ3b9WrbVzmViBdmuadvGhYF82MEE4g_qODY7Kk1ddPiUifOPyrzmO85Y="
+        :hotkeys="[{ keyCode: 68, modifiers: ['shift'], handler({ state, post }) { state.name='test'; post('/'); }}]"
+      >
         <template v-slot="{ state, data, command, post }">
           <div>SlyApp.js example</div>
         </template>
