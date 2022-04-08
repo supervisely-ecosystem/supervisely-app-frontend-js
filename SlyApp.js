@@ -234,6 +234,7 @@ Vue.component('sly-app', {
           });
         });
       },
+      immediate: true,
     },
   },
 
@@ -336,7 +337,7 @@ Vue.component('sly-app', {
     },
 
     updateTaskData(payload) {
-      if (!this.task?.id || !payload[0].status) return;
+      if (!this.task?.id || !payload?.[0]?.status) return;
 
       this.task.status = payload[0].status;
     },
@@ -494,7 +495,9 @@ Vue.component('sly-app', {
           initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
         }
 
-        await this.saveTaskDataToDB(initialState);
+        if (this.task.status !== 'finished' && this.task.status !== 'stopped') {
+          await this.saveTaskDataToDB(initialState);
+        }
       }
 
       document.addEventListener('keypress', this.hotkeysHandler);
