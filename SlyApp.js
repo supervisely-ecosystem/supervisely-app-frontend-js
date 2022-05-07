@@ -63,7 +63,7 @@ function applyPatch(document, patch) {
 Vue.component('sly-debug-panel', {
   props: ['value'],
   template: `
-    <div style="position: fixed; top: 0; right: 0; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px;">
+    <div style="z-index: 9999999; position: fixed; top: 0; right: 0; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px;">
       <div style="display: flex; justify-content: flex-end;">
         <el-button type="text" @click="isOpen = !isOpen" style="padding: 0;">
           <i :class="[isOpen ? 'el-icon-caret-top' : 'el-icon-caret-bottom']"></i>
@@ -233,7 +233,9 @@ Vue.component('sly-app', {
     return {
       loading: true,
       task: {},
-      state: {},
+      state: {
+        scrollIntoView: null,
+      },
       data: {},
       sessionInfo: {},
       context: {},
@@ -276,6 +278,24 @@ Vue.component('sly-app', {
       },
       immediate: true,
     },
+    'state.scrollIntoView': {
+      handler() {
+        this.$nextTick(() => {
+          const ref = this.state?.scrollIntoView;
+    
+          if (!ref) return;
+      
+          const component = this.$refs['app-content'].querySelector(`#${ref}`);
+      
+          if (!component) return;
+      
+          component.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+          this.state.scrollIntoView = null;
+        });
+      },
+      immediate: true,
+    }
   },
 
   methods: {
@@ -387,7 +407,18 @@ Vue.component('sly-app', {
 
       this.ws.onmessage = (event) => {
         console.log('Message received from Python', event);
-        this.merge(JSON.parse(event.data));
+
+        if (!event.data || typeof event.data !== 'string') return;
+
+        let parsedData;
+        try {
+          parsedData = JSON.parse(event.data);
+        } catch (err) {
+          console.error(err);
+          return;
+        }
+
+        this.merge(parsedData);
       };
 
       this.ws.onopen = () => {
