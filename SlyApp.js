@@ -192,7 +192,10 @@ Vue.component('sly-app-error', {
     open(err) {
       if (!err?.details?.message) return;
       this.err = err;
-      this.visible = true;
+
+      this.$nextTick(() => {
+        this.visible = true;
+      });
     },
 
     onClose() {
@@ -235,6 +238,7 @@ Vue.component('sly-app', {
       task: {},
       state: {
         scrollIntoView: null,
+        slyNotification: null,
       },
       data: {},
       sessionInfo: {},
@@ -295,7 +299,20 @@ Vue.component('sly-app', {
         });
       },
       immediate: true,
-    }
+    },
+    'state.slyNotification': {
+      handler() {
+        this.$nextTick(() => {
+          if (!this.state.slyNotification) return;
+
+          this.$message(this.state.slyNotification);
+
+          this.state.slyNotification = null;
+        });
+      },
+      immediate: true,
+      deep: true,
+    },
   },
 
   methods: {
@@ -493,29 +510,34 @@ Vue.component('sly-app', {
         serverAddress = this.sessionInfo?.SERVER_ADDRESS || integrationData.serverAddress;
       }
 
-      if (sly.publicApiInstance && serverAddress) {
+      if (serverAddress) {
         apiToken = integrationData?.apiToken || this.sessionInfo?.API_TOKEN;
         serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
 
+        this.publicApiInstance = axios.create({
+          baseURL: `${serverAddress}/public/api/v3`,
+        });
+
         if (apiToken) {
           this.context.apiToken = apiToken;
-          sly.publicApiInstance.defaults.headers.common['x-api-key'] = apiToken;
+          this.publicApiInstance.defaults.headers.common['x-api-key'] = apiToken;
         }
-
-        sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
-        this.publicApiInstance = sly.publicApiInstance;
 
         taskId = this.sessionInfo?.TASK_ID || integrationData.taskId;
 
         if (taskId) {
-          this.task = await sly.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
+          try {
+            this.task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
 
-          const taskData = this.task?.settings?.customData;
+            const taskData = this.task?.settings?.customData;
 
-          if (taskData) {
-            const { state = {}, data = {} } = taskData;
-            this.state = state;
-            this.data = data;
+            if (taskData) {
+              const { state = {}, data = {} } = taskData;
+              this.state = state;
+              this.data = data;
+            }
+          } catch (err) {
+            console.error(err);
           }
 
           if (window.io) {
@@ -631,6 +653,7 @@ const scripts = [
   'https://cdn.jsdelivr.net/npm/jsoneditor@9.7.0/dist/jsoneditor.min.js',
   'https://cdn.jsdelivr.net/npm/jsoneditor@9.7.0/dist/jsoneditor.min.css',
   'https://cdn.jsdelivr.net/npm/socket.io-client@2.0.4/dist/socket.io.js',
+  'https://cdn.jsdelivr.net/npm/axios@0.17.1/dist/axios.min.js',
 ];
 
 scripts.forEach((f) => {
