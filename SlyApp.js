@@ -493,7 +493,9 @@ Vue.component('sly-app', {
         }
       }
 
-      this.sessionInfo = await this.getJson('/sly/session-info') || {};
+      if (!integrationData.isStaticVersion) {
+        this.sessionInfo = await this.getJson('/sly/session-info') || {};
+      }
 
       let taskId;
       let apiToken;
@@ -555,23 +557,25 @@ Vue.component('sly-app', {
 
       this.integrationData = integrationData;
 
-      const stateRes = await this.getJson('/sly/state', false);
-      let state;
+      if (!integrationData.isStaticVersion) {
+        const stateRes = await this.getJson('/sly/state', false);
+        let state;
 
-      if (stateRes) {
-        this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
-        console.log('State headers:', stateRes.headers);
-        state = await stateRes.json();
-      }
+        if (stateRes) {
+          this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
+          console.log('State headers:', stateRes.headers);
+          state = await stateRes.json();
+        }
 
-      const data = await this.getJson('/sly/data');
+        const data = await this.getJson('/sly/data');
 
-      if (state) {
-        this.state = state;
-      }
+        if (state) {
+          this.state = state;
+        }
 
-      if (data) {
-        this.data = data;
+        if (data) {
+          this.data = data;
+        }
       }
 
       if (this.publicApiInstance && taskId && serverAddress) {
@@ -589,7 +593,7 @@ Vue.component('sly-app', {
           initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
         }
 
-        if (this.task.status !== 'finished' && this.task.status !== 'stopped') {
+        if (!integrationData.isStaticVersion && this.task.status !== 'finished' && this.task.status !== 'stopped') {
           await this.saveTaskDataToDB(initialState);
         }
       }
