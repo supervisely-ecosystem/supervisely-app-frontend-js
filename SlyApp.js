@@ -516,9 +516,15 @@ Vue.component('sly-app', {
         apiToken = integrationData?.apiToken || this.sessionInfo?.API_TOKEN;
         serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
 
-        this.publicApiInstance = axios.create({
-          baseURL: `${serverAddress}/public/api/v3`,
-        });
+        if (sly.publicApiInstance) {
+          sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
+          this.publicApiInstance = sly.publicApiInstance;
+        } else {
+          this.publicApiInstance = axios.create({
+            baseURL: `${serverAddress}/public/api/v3`,
+          });
+
+        }
 
         if (apiToken) {
           this.context.apiToken = apiToken;
