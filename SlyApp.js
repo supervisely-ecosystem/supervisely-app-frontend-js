@@ -1,5 +1,3 @@
-document.head.innerHTML += `<link type="text/css" rel="stylesheet" href="https://supervise.ly/sly-app-widgets-2.0.1.bundle.css">`;
-
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
