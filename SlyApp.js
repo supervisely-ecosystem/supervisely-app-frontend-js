@@ -223,7 +223,7 @@ Vue.component('sly-app', {
 <div>
   <sly-app-error ref="err-dialog"></sly-app-error>
   <div ref="app-content">
-    <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" />
+    <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" :session="task" />
   </div>
 
   <sly-debug-panel v-if="isDebugMode" :value="{ state: state, data: data }" />
