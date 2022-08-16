@@ -28,8 +28,14 @@ function formatError(res, data = {}) {
   err.details = data.details || data.detail;
 
   if (!err.details) {
+    let message =  'Something went wrong';
+
+    if (task && completedAppStatusSet.has(task.status)) {
+      message = 'Current application session is finished and available only in preview mode. You need to run this app again';
+    }
+
     err.details = {
-      message: 'Something went wrong',
+      message,
     };
   } else if (typeof err.details !== 'object') {
     const errMsg = err.details;
@@ -41,14 +47,14 @@ function formatError(res, data = {}) {
   return err;
 }
 
-async function requestErrorHandler(res) {
+async function requestErrorHandler(res, task) {
   if (!res.ok) {
     let data;
     try {
       data = await res.json();
     } catch (err) {}
 
-    throw formatError(res, data);
+    throw formatError(res, data, task);
   }
 
   return res;
@@ -349,7 +355,7 @@ Vue.component('sly-app', {
           }),
           headers: {'Content-Type': 'application/json'}
       })
-      .then(requestErrorHandler)
+      .then(res => requestErrorHandler(res, this.task))
       .then(res => res.json())
       .then((json) => {
         if (!json) return;
@@ -366,7 +372,7 @@ Vue.component('sly-app', {
       return fetch(`${this.formattedUrl}${path}`, {
         method: 'POST',
       })
-        .then(requestErrorHandler)
+      .then(res => requestErrorHandler(res, this.task))
         .then(res => {
           if (contentOnly) {
             return res.json();
