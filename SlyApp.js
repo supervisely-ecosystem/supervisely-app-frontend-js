@@ -28,14 +28,8 @@ function formatError(res, data = {}) {
   err.details = data.details || data.detail;
 
   if (!err.details) {
-    let message =  'Something went wrong';
-
-    if (task && completedAppStatusSet.has(task.status)) {
-      message = 'Current application session is finished and available only in preview mode. You need to run this app again';
-    }
-
     err.details = {
-      message,
+      message: 'Something went wrong',
     };
   } else if (typeof err.details !== 'object') {
     const errMsg = err.details;
@@ -54,7 +48,7 @@ async function requestErrorHandler(res, task) {
       data = await res.json();
     } catch (err) {}
 
-    throw formatError(res, data, task);
+    throw formatError(res, data);
   }
 
   return res;
@@ -320,8 +314,22 @@ Vue.component('sly-app', {
   },
 
   methods: {
+    checkPreviewMode() {
+      if (!this.task || !completedAppStatusSet.has(this.task.status)) return false;
+
+      this.$refs['err-dialog'].open({
+        details: {
+          message: 'Current application session is finished and available only in preview mode. You need to run this app again',
+        },
+      });
+
+      return true;
+    },
+
     async command(command, payload = {}) {
       console.log('Command!', command);
+
+      if (this.checkPreviewMode()) return;
 
       await this.sendStatePatchToApi();
 
@@ -344,6 +352,8 @@ Vue.component('sly-app', {
     async post(command, payload = {}) {
       console.log('Http!', command);
 
+      if (this.checkPreviewMode()) return;
+
       await this.sendStatePatchToApi();
 
       fetch(`${this.formattedUrl}${command}`, {
@@ -355,7 +365,7 @@ Vue.component('sly-app', {
           }),
           headers: {'Content-Type': 'application/json'}
       })
-      .then(res => requestErrorHandler(res, this.task))
+      .then(requestErrorHandler)
       .then(res => res.json())
       .then((json) => {
         if (!json) return;
@@ -369,10 +379,12 @@ Vue.component('sly-app', {
     },
 
     async getJson(path, contentOnly = true) {
+      if (this.checkPreviewMode()) return;
+
       return fetch(`${this.formattedUrl}${path}`, {
         method: 'POST',
       })
-      .then(res => requestErrorHandler(res, this.task))
+      .then(requestErrorHandler)
         .then(res => {
           if (contentOnly) {
             return res.json();
