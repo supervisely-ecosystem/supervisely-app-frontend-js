@@ -615,7 +615,7 @@ Vue.component('sly-app', {
           initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
         }
 
-        if (!integrationData.isStaticVersion && this.task.status !== 'finished' && this.task.status !== 'stopped') {
+        if (!integrationData.isStaticVersion && !completedAppStatusSet.has(this.task.status)) {
           await this.saveTaskDataToDB(initialState);
         }
       }
@@ -626,6 +626,12 @@ Vue.component('sly-app', {
     } catch(err) {
       throw err;
     } finally {
+      const el = document.querySelector('#app-global-loading-icon');
+
+      if (el) {
+        el.style.display = 'none';
+      }
+
       this.loading = false;
     }
 
