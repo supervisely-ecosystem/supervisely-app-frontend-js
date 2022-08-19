@@ -431,10 +431,10 @@ Vue.component('sly-app', {
 
     updateTaskData(payload) {
       console.log('Task WS update:', payload);
-      if (!this.task?.id || !payload?.[0]?.status) return;
+      if (!this.task?.id || (!payload?.status && !payload?.[0]?.status)) return;
 
-      console.log('Task WS update status:', payload[0]);
-      this.task.status = payload[0].status;
+      console.log('Task WS update status:', payload?.status || payload?.[0]?.status);
+      this.task.status = payload?.status || payload?.[0]?.status;
     },
 
     connectToWs() {
