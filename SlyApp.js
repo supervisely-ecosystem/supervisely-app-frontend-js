@@ -430,11 +430,12 @@ Vue.component('sly-app', {
     },
 
     updateTaskData(payload) {
-      console.log('Task WS update:', payload);
-      if (!this.task?.id || (!payload?.status && !payload?.[0]?.status)) return;
+      const taskId = parseInt(payload?.id || payload?.[0]?.id, 10);
+      const taskStatus = payload?.status || payload?.[0]?.status;
+      if (!this.task?.id || this.task?.id !== taskId || !taskStatus) return;
 
-      console.log('Task WS update status:', payload?.status || payload?.[0]?.status);
-      this.task.status = payload?.status || payload?.[0]?.status;
+      console.log('Task WS update status:', taskStatus);
+      this.task.status = taskStatus;
     },
 
     connectToWs() {
