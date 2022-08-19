@@ -41,7 +41,7 @@ function formatError(res, data = {}) {
   return err;
 }
 
-async function requestErrorHandler(res, task) {
+async function requestErrorHandler(res) {
   if (!res.ok) {
     let data;
     try {
@@ -430,8 +430,10 @@ Vue.component('sly-app', {
     },
 
     updateTaskData(payload) {
+      console.log('Task WS update:', payload);
       if (!this.task?.id || !payload?.[0]?.status) return;
 
+      console.log('Task WS update status:', payload[0]);
       this.task.status = payload[0].status;
     },
 
