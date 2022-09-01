@@ -233,7 +233,7 @@ Vue.component('sly-app', {
   data: function () {
     return {
       loading: true,
-      task: {},
+      task: null,
       state: {
         scrollIntoView: null,
         slyNotification: null,
@@ -618,7 +618,7 @@ Vue.component('sly-app', {
           initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
         }
 
-        if (!integrationData.isStaticVersion && !completedAppStatusSet.has(this.task.status)) {
+        if (!integrationData.isStaticVersion && !completedAppStatusSet.has(this.task?.status)) {
           await this.saveTaskDataToDB(initialState);
         }
       }
