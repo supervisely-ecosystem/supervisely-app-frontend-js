@@ -527,6 +527,16 @@ Vue.component('sly-app', {
         integrationData.token = localStorage.token;
       }
 
+      if (!window.config) {
+        window.config = {};
+
+        if (this.sessionInfo?.ENV || integrationData?.env) {
+          wondow.config = this.sessionInfo?.ENV || integrationData.env;
+        }
+
+        Vue.prototype.$env = window.config;
+      }
+
       if (this.sessionInfo?.SERVER_ADDRESS || integrationData?.serverAddress) {
         serverAddress = this.sessionInfo?.SERVER_ADDRESS || integrationData.serverAddress;
       }
@@ -601,6 +611,10 @@ Vue.component('sly-app', {
         if (data) {
           this.data = data;
         }
+      }
+
+      if (this.isDebugMode && serverAddress) {
+        window.config.SLY_APP_DEBUG_SERVER_ADDRESS = serverAddress;
       }
 
       if (this.publicApiInstance && taskId && serverAddress) {
