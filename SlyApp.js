@@ -27,7 +27,11 @@ function formatError(res, data = {}) {
   err.title = res.statusText;
   err.details = data.details || data.detail;
 
-  if (!err.details) {
+  if (err?.status === 404 && res?.url) {
+    err.details = {
+      message: `"${res.url}" not found`,
+    };
+  } else if (!err.details) {
     err.details = {
       message: 'Something went wrong',
     };
