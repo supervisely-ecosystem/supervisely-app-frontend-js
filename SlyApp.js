@@ -535,7 +535,7 @@ Vue.component('sly-app', {
         window.config = {};
 
         if (this.sessionInfo?.ENV || integrationData?.env) {
-          wondow.config = this.sessionInfo?.ENV || integrationData.env;
+          window.config = this.sessionInfo?.ENV || integrationData.env;
         }
 
         Vue.prototype.$env = window.config;
