@@ -550,6 +550,10 @@ Vue.component('sly-app', {
         serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
 
         if (sly.publicApiInstance) {
+          if (sly.apiInstance) {
+            sly.apiInstance.defaults.baseURL = serverAddress + '/api';
+            sly.apiInstance.defaults.headers.common.Authorization = `Bearer ${localStorage.token}`;
+          }
           sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
           this.publicApiInstance = sly.publicApiInstance;
         } else {
@@ -569,6 +573,12 @@ Vue.component('sly-app', {
         if (taskId) {
           try {
             this.task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
+
+            if (sly.apiInstance) {
+              sly.apiInstance.defaults.baseURL = serverAddress + '/api';
+              sly.apiInstance.defaults.headers.common['x-team-id'] = this.task.teamId;
+              sly.apiInstance.defaults.headers.common['x-workspace-id'] = this.task.workspaceId;
+            }
 
             const taskData = this.task?.settings?.customData;
 
