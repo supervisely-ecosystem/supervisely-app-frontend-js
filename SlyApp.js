@@ -1,8 +1,9 @@
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
-import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
+import uuid from 'https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/esm-browser/v4.js';
 
+const taskDataQueue = [];
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
 function connectToSocket(url, ...namespaces) {
@@ -414,8 +415,17 @@ Vue.component('sly-app', {
       await this.saveTaskDataToDB(payload);
     },
 
-    async saveTaskDataToDB(payload) {
+    async saveTaskDataToDB(payload, requestId) {
       if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
+
+      if (!requestId && taskDataQueue.length) {
+        taskDataQueue.push({
+          requestId: uuid(),
+          payload,
+        });
+
+        return;
+      }
 
       try {
         await this.publicApiInstance.post('tasks.app-v2.data.set', {
@@ -430,6 +440,22 @@ Vue.component('sly-app', {
 
         const formattedErr = formatError(err.response, err.response?.data);
         this.$refs['err-dialog'].open(formattedErr);
+      } finally {
+        if (requestId) {
+          const reqIdx =  taskDataQueue.findIndex(q => q.requestId === requestId);
+
+          if (reqIdx >= 0) {
+            taskDataQueue.splice(reqIdx, 1);
+          }
+          console.log('Set data request:', requestId, ', queue size:', taskDataQueue.length)
+        } else {
+          console.log('Set data queue size:', taskDataQueue.length)
+        }
+
+        if (taskDataQueue.length) {
+          const nextReq = taskDataQueue[0];
+          this.saveTaskDataToDB(nextReq.payload, nextReq.requestId);
+        }
       }
     },
 
@@ -560,7 +586,6 @@ Vue.component('sly-app', {
           this.publicApiInstance = axios.create({
             baseURL: `${serverAddress}/public/api/v3`,
           });
-
         }
 
         if (apiToken) {
