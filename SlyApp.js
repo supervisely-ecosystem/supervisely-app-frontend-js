@@ -431,10 +431,7 @@ Vue.component('sly-app', {
         });
 
         if (!queueIsEmpty) {
-          console.log('Request', curRequestId, 'queued');
           return;
-        } else {
-          console.log('Request', curRequestId, 'will be sent');
         }
       }
 
@@ -458,7 +455,7 @@ Vue.component('sly-app', {
           taskDataQueue.splice(reqIdx, 1);
         }
 
-        console.log('Set data request:', curRequestId, ', queue size:', taskDataQueue.length)
+        // console.log('Set data request:', curRequestId, ', queue size:', taskDataQueue.length)
 
         if (taskDataQueue.length) {
           const nextReq = taskDataQueue[0];
