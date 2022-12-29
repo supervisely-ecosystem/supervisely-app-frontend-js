@@ -1,12 +1,17 @@
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/index.mjs';
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
+import isEqual from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/isEqual.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 import uuid from 'https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/esm-browser/v4.js';
 
 const taskDataQueue = [];
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move', 'copy']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
+
+function log(...args) {
+  console.log(...args);
+}
 
 function connectToSocket(url, ...namespaces) {
   const socket = io(`${url}/${namespaces.join('-')}`, {
@@ -61,14 +66,12 @@ async function requestErrorHandler(res) {
   return res;
 }
 
-// function applyPatch(document, patch) {
-//   return jsonpatch.applyPatch(document, patch, false, false).newDocument;
-// }
 function applyPatch(document, patch) {
   let curDocument = document;
 
+  log('==================== Patch batch started')
   patch.forEach((operation) => {
-    console.log('> operation START:', operation.op, operation);
+    log('>>>>>>>>>> operation START:', operation.op, operation);
     if (vuePatchOptsSet.has(operation.op)) {
       const pathParts = operation.path.split('/');
       const propName = pathParts.splice(-1)[0];
@@ -81,38 +84,47 @@ function applyPatch(document, patch) {
         parentObject = curDocument;
       }
 
-      console.log('> parentObject path:', operation.path, ', propName:', propName, ', object:', cloneDeep(parentObject));
-
-      // if (typeof parentObject !== 'object' && (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
-      // if (typeof parentObject !== 'object') {
-      //   curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
-      //   console.log('> 1:', cloneDeep(curDocument));
-      //   return;
-      // };
+      log('> parentObject path:', operation.path, ', propName:', propName, ', object:', cloneDeep(parentObject));
 
       if (operation.op === 'add') {
-        console.log('> add');
-        if (Array.isArray(parentObject)) {
-          parentObject.splice(propName, 0, operation.value);
-          console.log('> add to array');
+        log('> add');
+        if (operation.path === '') {
+          curDocument = operation.value;
         } else {
-          Vue.set(parentObject, propName, operation.value);
-          console.log('> add to object');
+          if (Array.isArray(parentObject)) {
+            if (propName === '-') {
+              if (Array.isArray(operation.value)) {
+                parentObject.push(...operation.value);
+              } else {
+                parentObject.push(operation.value);
+              }
+            } else {
+              parentObject.splice(propName, 0, operation.value);
+            }
+            log('> add to array');
+          } else {
+            Vue.set(parentObject, propName, operation.value);
+            log('> add to object');
+          }
         }
-        console.log('> add end:', cloneDeep(curDocument));
+        log('> add end:', cloneDeep(curDocument));
       } else if (operation.op === 'replace') {
-        console.log('> replace');
-        if (Array.isArray(parentObject)) {
-          parentObject.splice(propName, 1, operation.value);
-          console.log('> replace in array');
+        log('> replace');
+        if (operation.path === '') {
+          curDocument = operation.value;
         } else {
-          Vue.delete(parentObject, propName);
-          Vue.set(parentObject, propName, operation.value);
-          console.log('> replace in object');
+          if (Array.isArray(parentObject)) {
+            parentObject.splice(propName, 1, operation.value);
+            log('> replace in array');
+          } else {
+            Vue.delete(parentObject, propName);
+            Vue.set(parentObject, propName, operation.value);
+            log('> replace in object');
+          }
         }
-        console.log('> replace end:', cloneDeep(curDocument));
+        log('> replace end:', cloneDeep(curDocument));
       } else if (operation.op === 'move' || operation.op === 'copy') {
-          console.log('> move/copy');
+          log('> move/copy');
           const pathPartsFrom = operation.from.split('/');
           const propNameFrom = pathPartsFrom.splice(-1)[0];
 
@@ -125,39 +137,41 @@ function applyPatch(document, patch) {
           }
 
           const moveValue = cloneDeep(jsonpatch.getValueByPointer(curDocument, operation.from));
-          console.log('> move/copy from:', operation.from, cloneDeep(parentObjectFrom), moveValue);
-          console.log('> move/copy path:', operation.path, cloneDeep(parentObject));
+          log('> move/copy from:', operation.from, cloneDeep(parentObjectFrom), moveValue);
+          log('> move/copy path:', operation.path, cloneDeep(parentObject));
+
+          log('> move/copy before remove', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+          if (operation.op === 'move') {
+            Vue.delete(parentObjectFrom, propNameFrom);
+            log('> move/copy remove - propNameFrom:', propNameFrom, ', isArray', Array.isArray(parentObjectFrom));
+          }
 
           if (Array.isArray(parentObject)) {
-            parentObject.splice(propName, 0, operation.value);
-            console.log('> move/copy to array');
+            parentObject.splice(propName, 0, moveValue);
+            log('> move/copy to array');
           } else {
             Vue.set(parentObject, propName, moveValue);
-            console.log('> move/copy to object');
+            log('> move/copy');
           }
-          console.log('> move/copy from,path,value:', operation.from, operation.path, moveValue);
+          log('> move/copy from,path,value:', operation.from, operation.path, moveValue);
 
-          console.log('> move/copy bofore remove', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-          if (operation.op === 'move') {
-            // TODO: delete for array???
-            Vue.delete(parentObjectFrom, propNameFrom);
-            console.log('> move/copy remove - propNameFrom:', propNameFrom, ', isArray', Array.isArray(parentObjectFrom));
-          }
-          console.log('> move/copy end - pathFrom:', pathPartsFrom, ', propNameFrom:', propNameFrom, ', fromObj:', cloneDeep(parentObjectFrom));
+          log('> move/copy end - pathFrom:', pathPartsFrom, ', propNameFrom:', propNameFrom, ', fromObj:', cloneDeep(parentObjectFrom));
       } else if (operation.op === 'remove') {
-        console.log('> remove:', cloneDeep(curDocument));
+        log('> remove:', cloneDeep(curDocument));
         Vue.delete(parentObject, propName);
-        console.log('> remove end:', cloneDeep(curDocument));
+        log('> remove end:', cloneDeep(curDocument));
       }
 
-      console.log('======== result:', cloneDeep(curDocument));
+      log('======== result:', cloneDeep(curDocument));
     } else {
       curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
-      console.log('> not in operations list:', operation.op, cloneDeep(curDocument));
+      log('> not in operations list:', operation.op, cloneDeep(curDocument));
     }
 
-    console.log('> operation END:', operation.op, operation);
+    log('>>>>>>>>>> operation END:', operation.op, operation);
   });
+
+  log('==================== Patch batch applied')
 
   return curDocument;
 }
@@ -348,6 +362,7 @@ Vue.component('sly-app', {
       ws: null,
       isDebugMode: false,
       publicApiInstance: null,
+      apiInstance: null,
       appUrl: '',
       stateObserver: '',
     };
@@ -502,13 +517,23 @@ Vue.component('sly-app', {
         });
     },
 
+    async checkMerge(mergedState, patchedState, key) {
+      if (!isEqual(mergedState, patchedState)) {
+        console.log('merge diff:', { key, taskId: this.task?.id }, JSON.stringify(mergedState), JSON.stringify(patchedState));
+      }
+    },
+
     async merge(payload) {
       if (payload.state) {
+        const prevState = jsonpatch.applyPatch(cloneDeep(this.state), payload.state, false, false).newDocument;
         this.state = applyPatch(this.state, payload.state);
+        this.checkMerge(cloneDeep(this.state), prevState, 'state');
       }
 
       if (payload.data) {
+        const prevData = jsonpatch.applyPatch(cloneDeep(this.data), payload.data, false, false).newDocument;
         this.data = applyPatch(this.data, payload.data);
+        this.checkMerge(cloneDeep(this.data), prevData, 'data');
       }
 
       await this.saveTaskDataToDB(payload);
@@ -684,17 +709,24 @@ Vue.component('sly-app', {
         serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
 
         if (sly.publicApiInstance) {
-          if (sly.apiInstance) {
-            sly.apiInstance.defaults.baseURL = serverAddress + '/api';
-            sly.apiInstance.defaults.headers.common.Authorization = `Bearer ${localStorage.token}`;
-          }
           sly.publicApiInstance.defaults.baseURL = serverAddress + '/public/api/v3';
           this.publicApiInstance = sly.publicApiInstance;
         } else {
           this.publicApiInstance = axios.create({
             baseURL: `${serverAddress}/public/api/v3`,
           });
+
+          this.apiInstance = axios.create({ baseURL: serverAddress });
         }
+
+        if (sly.apiInstance) {
+          this.apiInstance = sly.apiInstance;
+        } else {
+          this.apiInstance = axios.create({ baseURL: serverAddress });
+        }
+
+        this.apiInstance.defaults.baseURL = serverAddress + '/api';
+        this.apiInstance.defaults.headers.common.Authorization = `Bearer ${localStorage?.token}`;
 
         if (apiToken) {
           this.context.apiToken = apiToken;
@@ -708,9 +740,8 @@ Vue.component('sly-app', {
             this.task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
 
             if (sly.apiInstance) {
-              sly.apiInstance.defaults.baseURL = serverAddress + '/api';
-              sly.apiInstance.defaults.headers.common['x-team-id'] = this.task.teamId;
-              sly.apiInstance.defaults.headers.common['x-workspace-id'] = this.task.workspaceId;
+              this.apiInstance.defaults.headers.common['x-team-id'] = this.task.teamId;
+              this.apiInstance.defaults.headers.common['x-workspace-id'] = this.task.workspaceId;
             }
 
             const taskData = this.task?.settings?.customData;
