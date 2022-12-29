@@ -415,16 +415,27 @@ Vue.component('sly-app', {
       await this.saveTaskDataToDB(payload);
     },
 
-    async saveTaskDataToDB(payload, requestId) {
+    async _saveTaskDataToDB(payload, requestId) {
       if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
 
-      if (!requestId && taskDataQueue.length) {
+      let curRequestId = requestId;
+
+      if (!requestId) {
+        let queueIsEmpty = !taskDataQueue.length;
+
+        curRequestId = uuid();
+
         taskDataQueue.push({
-          requestId: uuid(),
+          requestId: curRequestId,
           payload,
         });
 
-        return;
+        if (!queueIsEmpty) {
+          console.log('Request', curRequestId, 'queued');
+          return;
+        } else {
+          console.log('Request', curRequestId, 'will be sent');
+        }
       }
 
       try {
@@ -441,22 +452,23 @@ Vue.component('sly-app', {
         const formattedErr = formatError(err.response, err.response?.data);
         this.$refs['err-dialog'].open(formattedErr);
       } finally {
-        if (requestId) {
-          const reqIdx =  taskDataQueue.findIndex(q => q.requestId === requestId);
+        const reqIdx =  taskDataQueue.findIndex(q => q.requestId === curRequestId);
 
-          if (reqIdx >= 0) {
-            taskDataQueue.splice(reqIdx, 1);
-          }
-          console.log('Set data request:', requestId, ', queue size:', taskDataQueue.length)
-        } else {
-          console.log('Set data queue size:', taskDataQueue.length)
+        if (reqIdx >= 0) {
+          taskDataQueue.splice(reqIdx, 1);
         }
+
+        console.log('Set data request:', curRequestId, ', queue size:', taskDataQueue.length)
 
         if (taskDataQueue.length) {
           const nextReq = taskDataQueue[0];
-          this.saveTaskDataToDB(nextReq.payload, nextReq.requestId);
+          this._saveTaskDataToDB(nextReq.payload, nextReq.requestId);
         }
       }
+    },
+
+    async saveTaskDataToDB(payload) {
+      await this._saveTaskDataToDB(payload)
     },
 
     updateTaskData(payload) {
