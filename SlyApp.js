@@ -68,7 +68,7 @@ function applyPatch(document, patch) {
   let curDocument = document;
 
   patch.forEach((operation) => {
-    console.log('> operation:', operation.op, operation);
+    console.log('> operation START:', operation.op, operation);
     if (vuePatchOptsSet.has(operation.op)) {
       const pathParts = operation.path.split('/');
       const propName = pathParts.splice(-1)[0];
@@ -81,7 +81,7 @@ function applyPatch(document, patch) {
         parentObject = curDocument;
       }
 
-      console.log('> parentObject:', cloneDeep(parentObject));
+      console.log('> parentObject path:', operation.path, ', propName:', propName, ', object:', cloneDeep(parentObject));
 
       // if (typeof parentObject !== 'object' && (Array.isArray(parentObject) && typeof operation.value !== 'object')) {
       // if (typeof parentObject !== 'object') {
@@ -91,21 +91,28 @@ function applyPatch(document, patch) {
       // };
 
       if (operation.op === 'add') {
+        console.log('> add');
         if (Array.isArray(parentObject)) {
           parentObject.splice(propName, 0, operation.value);
+          console.log('> add to array');
         } else {
           Vue.set(parentObject, propName, operation.value);
+          console.log('> add to object');
         }
-        console.log('> add 2:', cloneDeep(curDocument));
+        console.log('> add end:', cloneDeep(curDocument));
       } else if (operation.op === 'replace') {
+        console.log('> replace');
         if (Array.isArray(parentObject)) {
           parentObject.splice(propName, 1, operation.value);
+          console.log('> replace in array');
         } else {
           Vue.delete(parentObject, propName);
           Vue.set(parentObject, propName, operation.value);
+          console.log('> replace in object');
         }
+        console.log('> replace end:', cloneDeep(curDocument));
       } else if (operation.op === 'move' || operation.op === 'copy') {
-          console.log('==============================1');
+          console.log('> move/copy');
           const pathPartsFrom = operation.from.split('/');
           const propNameFrom = pathPartsFrom.splice(-1)[0];
 
@@ -118,32 +125,38 @@ function applyPatch(document, patch) {
           }
 
           const moveValue = cloneDeep(jsonpatch.getValueByPointer(curDocument, operation.from));
-          console.log('==============================1.1', operation.from, cloneDeep(parentObjectFrom), moveValue);
-          console.log('==============================1.2', operation.path, cloneDeep(parentObject), moveValue);
+          console.log('> move/copy from:', operation.from, cloneDeep(parentObjectFrom), moveValue);
+          console.log('> move/copy path:', operation.path, cloneDeep(parentObject));
 
           if (Array.isArray(parentObject)) {
             parentObject.splice(propName, 0, operation.value);
-            console.log('> 2.1:');
+            console.log('> move/copy to array');
           } else {
             Vue.set(parentObject, propName, moveValue);
-            console.log('> 2.2:');
+            console.log('> move/copy to object');
           }
-          console.log('==============================2', operation.from, operation.path, moveValue);
+          console.log('> move/copy from,path,value:', operation.from, operation.path, moveValue);
 
-          console.log('> 2.3:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
+          console.log('> move/copy bofore remove', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
           if (operation.op === 'move') {
+            // TODO: delete for array???
             Vue.delete(parentObjectFrom, propNameFrom);
+            console.log('> move/copy remove - propNameFrom:', propNameFrom, ', isArray', Array.isArray(parentObjectFrom));
           }
-          console.log('> 2.4:', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
-          console.log('> 2.5:', cloneDeep(curDocument));
+          console.log('> move/copy end - pathFrom:', pathPartsFrom, ', propNameFrom:', propNameFrom, ', fromObj:', cloneDeep(parentObjectFrom));
       } else if (operation.op === 'remove') {
+        console.log('> remove:', cloneDeep(curDocument));
         Vue.delete(parentObject, propName);
-        console.log('> 3:', cloneDeep(curDocument));
+        console.log('> remove end:', cloneDeep(curDocument));
       }
+
+      console.log('======== result:', cloneDeep(curDocument));
     } else {
       curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
-      console.log('> 4:', cloneDeep(curDocument));
+      console.log('> not in operations list:', operation.op, cloneDeep(curDocument));
     }
+
+    console.log('> operation END:', operation.op, operation);
   });
 
   return curDocument;
