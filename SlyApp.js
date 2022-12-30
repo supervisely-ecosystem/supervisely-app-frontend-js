@@ -517,18 +517,20 @@ Vue.component('sly-app', {
         });
     },
 
-    async checkMerge(mergedState, patchedState, key) {
-      mergedState.key = uuid();
+    async checkMerge(vuePatch, jsonPatch, key) {
+      if (!isEqual(vuePatch, jsonPatch)) {
+        const vueState = JSON.stringify(vuePatch);
+        const jsonState = JSON.stringify(jsonPatch);
 
-      if (!isEqual(mergedState, patchedState)) {
-        console.log('merge diff:', { key, taskId: this.task?.id }, JSON.stringify(mergedState), JSON.stringify(patchedState));
+        console.log('merge diff:', { key, taskId: this.task?.id }, vueState, jsonState);
+
         try {
           await this.apiInstance.post(
             '/client-logs',
             [{
               level: 'warn',
               message: 'sly-app patch error',
-              payload: { vuePatch: JSON.stringify({ test: 1 }), jsonPatch: JSON.stringify({ test: 3 }) },
+              payload: { key, taskId: this.task?.id, vueState, jsonState },
               service: 'sly-app',
               timestamp: new Date(),
             }],
