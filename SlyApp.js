@@ -9,8 +9,8 @@ const taskDataQueue = [];
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move', 'copy']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
 
-function log(...args) {
-  console.log(...args);
+function log() {
+  // console.log(...args);
 }
 
 function connectToSocket(url, ...namespaces) {
@@ -518,8 +518,23 @@ Vue.component('sly-app', {
     },
 
     async checkMerge(mergedState, patchedState, key) {
+      mergedState.key = uuid();
+
       if (!isEqual(mergedState, patchedState)) {
         console.log('merge diff:', { key, taskId: this.task?.id }, JSON.stringify(mergedState), JSON.stringify(patchedState));
+        try {
+          await this.apiInstance.post(
+            '/client-logs',
+            [{
+              level: 'warn',
+              message: 'sly-app patch error',
+              payload: { vuePatch: JSON.stringify({ test: 1 }), jsonPatch: JSON.stringify({ test: 3 }) },
+              service: 'sly-app',
+              timestamp: new Date(),
+            }],
+            {},
+          ).then(r => r.data);
+        } catch (err) {}
       }
     },
 
@@ -722,7 +737,7 @@ Vue.component('sly-app', {
         if (sly.apiInstance) {
           this.apiInstance = sly.apiInstance;
         } else {
-          this.apiInstance = axios.create({ baseURL: serverAddress });
+          this.apiInstance = axios.create();
         }
 
         this.apiInstance.defaults.baseURL = serverAddress + '/api';
