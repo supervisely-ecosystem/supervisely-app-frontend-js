@@ -370,8 +370,21 @@ Vue.component('sly-app', {
 
   computed: {
     formattedUrl () {
-      if (!this.appUrl) return '';
-      return this.appUrl.replace(/\/$/, '');
+      let formattedUrl = '';
+
+      if (this.appUrl) {
+        formattedUrl = this.appUrl.replace(/\/$/, '');
+      }
+
+      Object.defineProperties(Vue.prototype, {
+        $appUrl: {
+          get() {
+            return formattedUrl;
+          },
+        },
+      });
+
+      return formattedUrl;
     },
   },
 
