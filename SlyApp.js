@@ -791,8 +791,8 @@ Vue.component('sly-app', {
 
           if (window.io) {
             if (integrationData.token) {
-              connectToSocket(serverAddress || '/');
-              this.taskSocket = connectToSocket(serverAddress || '/', 'tasks');
+              connectToSocket(serverAddress);
+              this.taskSocket = connectToSocket(serverAddress, 'tasks');
 
               this.taskSocket.on('changed:progress', this.updateTaskData);
             }
