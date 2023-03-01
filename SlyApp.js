@@ -734,7 +734,11 @@ Vue.component('sly-app', {
         serverAddress = this.sessionInfo?.SERVER_ADDRESS || integrationData.serverAddress;
       }
 
+      let rawServerAddress = '';
+
       if (serverAddress) {
+        rawServerAddress = serverAddress;
+
         apiToken = integrationData?.apiToken || this.sessionInfo?.API_TOKEN;
         serverAddress = `${serverAddress.endsWith('/') ? serverAddress.slice(0, -1) : serverAddress}`;
 
@@ -787,8 +791,8 @@ Vue.component('sly-app', {
 
           if (window.io) {
             if (integrationData.token) {
-              connectToSocket(serverAddress);
-              this.taskSocket = connectToSocket(serverAddress, 'tasks');
+              connectToSocket(serverAddress || '/');
+              this.taskSocket = connectToSocket(serverAddress || '/', 'tasks');
 
               this.taskSocket.on('changed:progress', this.updateTaskData);
             }
@@ -821,11 +825,11 @@ Vue.component('sly-app', {
         }
       }
 
-      if (this.isDebugMode && serverAddress) {
-        window.config.SLY_APP_DEBUG_SERVER_ADDRESS = serverAddress;
+      if (this.isDebugMode && (serverAddress || (rawServerAddress === '/'))) {
+        window.config.SLY_APP_DEBUG_SERVER_ADDRESS = serverAddress || '/';
       }
 
-      if (this.publicApiInstance && taskId && serverAddress) {
+      if (this.publicApiInstance && taskId && (serverAddress || (rawServerAddress === '/'))) {
         const initialState = {};
 
         const stateKeys = Object.keys(this.state);
