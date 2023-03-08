@@ -771,7 +771,8 @@ Vue.component('sly-app', {
 
         if (taskId) {
           try {
-            this.task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
+            const task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
+            this.task = task;
 
             if (this.task?.id) {
               if (sly.apiInstance) {
@@ -782,7 +783,7 @@ Vue.component('sly-app', {
               Object.defineProperties(Vue.prototype, {
                 $appSessionTeamId: {
                   get() {
-                    return this.task.teamId;
+                    return task.teamId;
                   },
                 },
               });
