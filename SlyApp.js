@@ -773,17 +773,27 @@ Vue.component('sly-app', {
           try {
             this.task = await this.publicApiInstance.post('/tasks.info', { id: taskId }).then(r => r.data);
 
-            if (sly.apiInstance) {
-              this.apiInstance.defaults.headers.common['x-team-id'] = this.task.teamId;
-              this.apiInstance.defaults.headers.common['x-workspace-id'] = this.task.workspaceId;
-            }
+            if (this.task?.id) {
+              if (sly.apiInstance) {
+                this.apiInstance.defaults.headers.common['x-team-id'] = this.task.teamId;
+                this.apiInstance.defaults.headers.common['x-workspace-id'] = this.task.workspaceId;
+              }
 
-            const taskData = this.task?.settings?.customData;
+              Object.defineProperties(Vue.prototype, {
+                $appSessionTeamId: {
+                  get() {
+                    return this.task.teamId;
+                  },
+                },
+              });
 
-            if (taskData) {
-              const { state = {}, data = {} } = taskData;
-              this.state = state;
-              this.data = data;
+              const taskData = this.task?.settings?.customData;
+
+              if (taskData) {
+                const { state = {}, data = {} } = taskData;
+                this.state = state;
+                this.data = data;
+              }
             }
           } catch (err) {
             console.error(err);
