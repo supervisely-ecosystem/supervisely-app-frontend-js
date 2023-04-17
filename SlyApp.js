@@ -5,13 +5,11 @@ import isEqual from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/isEqual.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 import uuid from 'https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/esm-browser/v4.js';
 
+const SHUTDOWN_DELAY = 1000;
+let shutdownTimeout = null;
 const taskDataQueue = [];
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move', 'copy']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
-
-function log() {
-  // console.log(...args);
-}
 
 function connectToSocket(url, ...namespaces) {
   const socket = io(`${url}/${namespaces.join('-')}`, {
@@ -69,9 +67,7 @@ async function requestErrorHandler(res) {
 function applyPatch(document, patch) {
   let curDocument = document;
 
-  log('==================== Patch batch started')
   patch.forEach((operation) => {
-    log('>>>>>>>>>> operation START:', operation.op, operation);
     if (vuePatchOptsSet.has(operation.op)) {
       const pathParts = operation.path.split('/');
       const propName = pathParts.splice(-1)[0];
@@ -84,10 +80,7 @@ function applyPatch(document, patch) {
         parentObject = curDocument;
       }
 
-      log('> parentObject path:', operation.path, ', propName:', propName, ', object:', cloneDeep(parentObject));
-
       if (operation.op === 'add') {
-        log('> add');
         if (operation.path === '') {
           curDocument = operation.value;
         } else {
@@ -101,30 +94,22 @@ function applyPatch(document, patch) {
             } else {
               parentObject.splice(propName, 0, operation.value);
             }
-            log('> add to array');
           } else {
             Vue.set(parentObject, propName, operation.value);
-            log('> add to object');
           }
         }
-        log('> add end:', cloneDeep(curDocument));
       } else if (operation.op === 'replace') {
-        log('> replace');
         if (operation.path === '') {
           curDocument = operation.value;
         } else {
           if (Array.isArray(parentObject)) {
             parentObject.splice(propName, 1, operation.value);
-            log('> replace in array');
           } else {
             Vue.delete(parentObject, propName);
             Vue.set(parentObject, propName, operation.value);
-            log('> replace in object');
           }
         }
-        log('> replace end:', cloneDeep(curDocument));
       } else if (operation.op === 'move' || operation.op === 'copy') {
-          log('> move/copy');
           const pathPartsFrom = operation.from.split('/');
           const propNameFrom = pathPartsFrom.splice(-1)[0];
 
@@ -137,44 +122,53 @@ function applyPatch(document, patch) {
           }
 
           const moveValue = cloneDeep(jsonpatch.getValueByPointer(curDocument, operation.from));
-          log('> move/copy from:', operation.from, cloneDeep(parentObjectFrom), moveValue);
-          log('> move/copy path:', operation.path, cloneDeep(parentObject));
 
-          log('> move/copy before remove', pathPartsFrom, cloneDeep(parentObjectFrom), propNameFrom);
           if (operation.op === 'move') {
             Vue.delete(parentObjectFrom, propNameFrom);
-            log('> move/copy remove - propNameFrom:', propNameFrom, ', isArray', Array.isArray(parentObjectFrom));
           }
 
           if (Array.isArray(parentObject)) {
             parentObject.splice(propName, 0, moveValue);
-            log('> move/copy to array');
           } else {
             Vue.set(parentObject, propName, moveValue);
-            log('> move/copy');
           }
-          log('> move/copy from,path,value:', operation.from, operation.path, moveValue);
-
-          log('> move/copy end - pathFrom:', pathPartsFrom, ', propNameFrom:', propNameFrom, ', fromObj:', cloneDeep(parentObjectFrom));
       } else if (operation.op === 'remove') {
-        log('> remove:', cloneDeep(curDocument));
         Vue.delete(parentObject, propName);
-        log('> remove end:', cloneDeep(curDocument));
       }
-
-      log('======== result:', cloneDeep(curDocument));
     } else {
       curDocument = jsonpatch.applyOperation(document, operation, false, false).newDocument;
-      log('> not in operations list:', operation.op, cloneDeep(curDocument));
     }
-
-    log('>>>>>>>>>> operation END:', operation.op, operation);
   });
-
-  log('==================== Patch batch applied')
 
   return curDocument;
 }
+
+Vue.component('sly-debug-panel-content', {
+  props: ['value'],
+  template: `
+    <div>
+      <div ref="jsoneditor" style="width: 340px; height: calc(100vh - 40px)"></div>
+    </div>
+  `,
+  watch: {
+    value: {
+      deep: true,
+      handler (value) {
+        this.editor.set(value);
+      },
+    },
+  },
+  mounted() {
+    const container = this.$refs.jsoneditor;
+
+    const options = {
+      mode: 'view'
+    };
+
+    this.editor = new JSONEditor(container, options);
+    this.editor.set(this.value);
+  }
+})
 
 Vue.component('sly-debug-panel', {
   props: ['value'],
@@ -186,9 +180,7 @@ Vue.component('sly-debug-panel', {
         </el-button>
       </div>
 
-      <div v-show="isOpen">
-        <div ref="jsoneditor" style="width: 340px; height: calc(100vh - 40px)"></div>
-      </div>
+      <sly-debug-panel-content v-if="isOpen" :value="value"></sly-debug-panel-content>
     </div>
   `,
   data: function () {
@@ -196,22 +188,6 @@ Vue.component('sly-debug-panel', {
       isOpen: false,
     };
   },
-
-  watch: {
-    value(value) {
-      this.editor.set(value);
-    },
-  },
-  mounted() {
-    const container = this.$refs.jsoneditor;
-
-    const options = {
-        mode: 'view'
-    };
-
-    this.editor = new JSONEditor(container, options);
-    this.editor.set(this.value);
-  }
 });
 
 Vue.component('sly-html-compiler', {
@@ -364,7 +340,6 @@ Vue.component('sly-app', {
       publicApiInstance: null,
       apiInstance: null,
       appUrl: '',
-      stateObserver: '',
     };
   },
 
@@ -553,24 +528,36 @@ Vue.component('sly-app', {
       }
     },
 
+    shutdownApp() {
+      if (taskDataQueue.length) {
+        shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
+        return;
+      }
+
+      this.post('/sly/shutdown');
+      shutdownTimeout = null;
+    },
+
     async merge(payload) {
       if (payload.state) {
-        const prevState = jsonpatch.applyPatch(cloneDeep(this.state), payload.state, false, false).newDocument;
         this.state = applyPatch(this.state, payload.state);
-        this.checkMerge(cloneDeep(this.state), prevState, 'state');
       }
 
       if (payload.data) {
-        const prevData = jsonpatch.applyPatch(cloneDeep(this.data), payload.data, false, false).newDocument;
         this.data = applyPatch(this.data, payload.data);
-        this.checkMerge(cloneDeep(this.data), prevData, 'data');
+      }
+
+      if (payload.action === 'shutdown') {
+        if (!shutdownTimeout) {
+          shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
+        }
       }
 
       await this.saveTaskDataToDB(payload);
     },
 
     async _saveTaskDataToDB(payload, requestId) {
-      if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
+      if (!this.publicApiInstance || !this.task?.id || payload.action || (!payload.state && !payload.data)) return;
 
       let curRequestId = requestId;
 
@@ -861,8 +848,6 @@ Vue.component('sly-app', {
       }
 
       document.addEventListener('keypress', this.hotkeysHandler);
-
-      this.stateObserver = jsonpatch.observe(this.state);
     } catch(err) {
       throw err;
     } finally {
