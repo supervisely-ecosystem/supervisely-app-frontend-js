@@ -538,6 +538,16 @@ Vue.component('sly-app', {
       shutdownTimeout = null;
     },
 
+    runAction({ action }) {
+      if (action === 'shutdown') {
+        if (shutdownTimeout) return;
+
+        shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
+
+        return;
+      }
+    },
+
     async merge(payload) {
       if (payload.state) {
         this.state = applyPatch(this.state, payload.state);
@@ -547,17 +557,11 @@ Vue.component('sly-app', {
         this.data = applyPatch(this.data, payload.data);
       }
 
-      if (payload.action === 'shutdown') {
-        if (!shutdownTimeout) {
-          shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
-        }
-      }
-
       await this.saveTaskDataToDB(payload);
     },
 
     async _saveTaskDataToDB(payload, requestId) {
-      if (!this.publicApiInstance || !this.task?.id || payload.action || (!payload.state && !payload.data)) return;
+      if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
 
       let curRequestId = requestId;
 
@@ -631,6 +635,11 @@ Vue.component('sly-app', {
           parsedData = JSON.parse(event.data);
         } catch (err) {
           console.error(err);
+          return;
+        }
+
+        if (parsedData.runAction) {
+          this.runAction(parsedData.runAction);
           return;
         }
 
@@ -736,18 +745,20 @@ Vue.component('sly-app', {
           this.publicApiInstance = axios.create({
             baseURL: `${serverAddress}/public/api/v3`,
           });
-
-          this.apiInstance = axios.create({ baseURL: serverAddress });
         }
 
         if (sly.apiInstance) {
+          sly.apiInstance.defaults.baseURL = serverAddress + '/api';
           this.apiInstance = sly.apiInstance;
         } else {
-          this.apiInstance = axios.create();
+          this.apiInstance = axios.create({
+            baseURL: `${serverAddress}/api`,
+          });
         }
 
-        this.apiInstance.defaults.baseURL = serverAddress + '/api';
-        this.apiInstance.defaults.headers.common.Authorization = `Bearer ${localStorage?.token}`;
+        if (localStorage?.token) {
+          this.apiInstance.defaults.headers.common.Authorization = `Bearer ${localStorage.token}`;
+        }
 
         if (apiToken) {
           this.context.apiToken = apiToken;
