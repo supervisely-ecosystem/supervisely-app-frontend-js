@@ -610,8 +610,8 @@ Vue.component('sly-app', {
     },
 
     async saveTaskDataToDB(payload) {
-      console.log('>>> before saveTaskDataToDB', this.sessionInfo?.skipDataExport, (this.integrationData.isStaticVersion && !taskDataQueue.length));
-      if (this.sessionInfo?.skipDataExport || (this.integrationData.isStaticVersion && !taskDataQueue.length)) return;
+      console.log('>>> before saveTaskDataToDB', this.sessionInfo?.SKIP_DATA_EXPORT, (this.integrationData.isStaticVersion && !taskDataQueue.length));
+      if (this.sessionInfo?.SKIP_DATA_EXPORT || (this.integrationData.isStaticVersion && !taskDataQueue.length)) return;
 
       await this._saveTaskDataToDB(payload);
     },
