@@ -610,7 +610,10 @@ Vue.component('sly-app', {
     },
 
     async saveTaskDataToDB(payload) {
-      await this._saveTaskDataToDB(payload)
+      console.log('>>> before saveTaskDataToDB', this.sessionInfo?.skipDataExport, (this.integrationData.isStaticVersion && !taskDataQueue.length));
+      if (this.sessionInfo?.skipDataExport || (this.integrationData.isStaticVersion && !taskDataQueue.length)) return;
+
+      await this._saveTaskDataToDB(payload);
     },
 
     updateTaskData(payload) {
@@ -786,12 +789,15 @@ Vue.component('sly-app', {
                 },
               });
 
-              const taskData = this.task?.settings?.customData;
+              if (integrationData.isStaticVersion) {
+                console.log('>>> load state & data from DB');
+                const taskData = this.task?.settings?.customData;
 
-              if (taskData) {
-                const { state = {}, data = {} } = taskData;
-                this.state = state;
-                this.data = data;
+                if (taskData) {
+                  const { state = {}, data = {} } = taskData;
+                  this.state = state;
+                  this.data = data;
+                }
               }
             }
           } catch (err) {
@@ -819,7 +825,7 @@ Vue.component('sly-app', {
 
         if (stateRes) {
           this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
-          console.log('State headers:', stateRes.headers);
+
           state = await stateRes.json();
         }
 
