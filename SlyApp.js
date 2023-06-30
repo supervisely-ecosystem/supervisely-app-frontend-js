@@ -143,6 +143,14 @@ function applyPatch(document, patch) {
   return curDocument;
 }
 
+export const eventBus = new Vue();
+
+Object.defineProperties(Vue.prototype, {
+  $eventBus: {
+    value: eventBus,
+  },
+});
+
 Vue.component('sly-debug-panel-content', {
   props: ['value'],
   template: `
@@ -331,6 +339,7 @@ Vue.component('sly-app', {
       state: {
         scrollIntoView: null,
         slyNotification: null,
+        datasets: null,
       },
       data: {},
       sessionInfo: {},
@@ -538,13 +547,15 @@ Vue.component('sly-app', {
       shutdownTimeout = null;
     },
 
-    runAction({ action }) {
+    runAction({ action, payload }) {
       if (action === 'shutdown') {
         if (shutdownTimeout) return;
 
         shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
 
         return;
+      } else if (action) {
+        this.$eventBus.$emit(action, payload);
       }
     },
 
