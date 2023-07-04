@@ -40,6 +40,7 @@ function formatError(res, data = {}) {
   } else if (!err.details) {
     err.details = {
       message: 'Something went wrong',
+      skipError: true,
     };
   } else if (typeof err.details !== 'object') {
     const errMsg = err.details;
@@ -489,7 +490,10 @@ Vue.component('sly-app', {
         this.merge(json);
       })
       .catch((err) => {
-        this.$refs['err-dialog'].open(err);
+        if (!err?.details?.skipError) {
+          this.$refs['err-dialog'].open(err);
+        }
+
         throw err;
       });
     },
@@ -510,7 +514,11 @@ Vue.component('sly-app', {
         })
         .then(res => res)
         .catch((err) => {
-          this.$refs['err-dialog'].open(err);
+          if (!err?.details?.skipError) {
+            this.$refs['err-dialog'].open(err);
+          }
+
+          console.error(err);
         });
     },
 
@@ -600,10 +608,11 @@ Vue.component('sly-app', {
           },
         });
       } catch (err) {
-        if (!this.$refs['err-dialog']) return;
-
-        const formattedErr = formatError(err.response, err.response?.data);
-        this.$refs['err-dialog'].open(formattedErr);
+        console.error({
+          message: '"tasks.app-v2.data.set" failed',
+          status: err?.response?.status,
+          details: err?.response?.data?.details,
+        });
       } finally {
         const reqIdx =  taskDataQueue.findIndex(q => q.requestId === curRequestId);
 
