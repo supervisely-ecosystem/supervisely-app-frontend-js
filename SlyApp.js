@@ -388,6 +388,8 @@ Vue.component('sly-app', {
             const elements = appEl.querySelectorAll('.el-button,.el-input,.el-input__inner,.el-textarea,.el-textarea__inner,.el-input-number,.el-radio__input,.el-radio__original,.el-switch,.el-switch__input,.el-slider__runway,.el-checkbox__input,.el-checkbox__original');
 
             Array.prototype.slice.call(elements).forEach((el) => {
+              if (el.classList.contains('available-in-offline')) return;
+
               el.setAttribute('disabled', true);
               el.classList.add('is-disabled');
               el.classList.add('disabled');
