@@ -40,6 +40,7 @@ function formatError(res, data = {}) {
   } else if (!err.details) {
     err.details = {
       message: 'Something went wrong',
+      skipError: true,
     };
   } else if (typeof err.details !== 'object') {
     const errMsg = err.details;
@@ -142,6 +143,14 @@ function applyPatch(document, patch) {
 
   return curDocument;
 }
+
+export const eventBus = new Vue();
+
+Object.defineProperties(Vue.prototype, {
+  $eventBus: {
+    value: eventBus,
+  },
+});
 
 Vue.component('sly-debug-panel-content', {
   props: ['value'],
@@ -331,6 +340,7 @@ Vue.component('sly-app', {
       state: {
         scrollIntoView: null,
         slyNotification: null,
+        datasets: null,
       },
       data: {},
       sessionInfo: {},
@@ -375,9 +385,11 @@ Vue.component('sly-app', {
             const appEl = this.$refs['app-content'];
             if (!appEl) return;
 
-            const elements = appEl.querySelectorAll('.el-button,.el-input,.el-input__inner,.el-textarea,.el-textarea__inner,.el-input-number,.el-radio__input,.el-radio__original,.el-switch,.el-switch__input,.el-slider__runway,.el-checkbox__input,.el-checkbox__original');
+            const elements = appEl.querySelectorAll('.el-button,.el-input,.el-input__inner,.el-textarea,.el-textarea__inner,.el-input-number,.el-radio__input,.el-radio__original,.el-switch,.el-switch:not(.available-in-offline) .el-switch__input,.el-slider:not(.available-in-offline) .el-slider__runway,.el-checkbox__input,.el-checkbox__original');
 
             Array.prototype.slice.call(elements).forEach((el) => {
+              if (el.classList.contains('available-in-offline')) return;
+
               el.setAttribute('disabled', true);
               el.classList.add('is-disabled');
               el.classList.add('disabled');
@@ -480,7 +492,10 @@ Vue.component('sly-app', {
         this.merge(json);
       })
       .catch((err) => {
-        this.$refs['err-dialog'].open(err);
+        if (!err?.details?.skipError) {
+          this.$refs['err-dialog'].open(err);
+        }
+
         throw err;
       });
     },
@@ -501,7 +516,11 @@ Vue.component('sly-app', {
         })
         .then(res => res)
         .catch((err) => {
-          this.$refs['err-dialog'].open(err);
+          if (!err?.details?.skipError) {
+            this.$refs['err-dialog'].open(err);
+          }
+
+          console.error(err);
         });
     },
 
@@ -538,13 +557,15 @@ Vue.component('sly-app', {
       shutdownTimeout = null;
     },
 
-    runAction({ action }) {
+    runAction({ action, payload }) {
       if (action === 'shutdown') {
         if (shutdownTimeout) return;
 
         shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
 
         return;
+      } else if (action) {
+        this.$eventBus.$emit(action, payload);
       }
     },
 
@@ -589,10 +610,11 @@ Vue.component('sly-app', {
           },
         });
       } catch (err) {
-        if (!this.$refs['err-dialog']) return;
-
-        const formattedErr = formatError(err.response, err.response?.data);
-        this.$refs['err-dialog'].open(formattedErr);
+        console.error({
+          message: '"tasks.app-v2.data.set" failed',
+          status: err?.response?.status,
+          details: err?.response?.data?.details,
+        });
       } finally {
         const reqIdx =  taskDataQueue.findIndex(q => q.requestId === curRequestId);
 
