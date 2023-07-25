@@ -3,13 +3,16 @@ import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js
 import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
 import isEqual from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/isEqual.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
-import uuid from 'https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/esm-browser/v4.js';
 
-const SHUTDOWN_DELAY = 1000;
-let shutdownTimeout = null;
-const taskDataQueue = [];
+const eventBus = new Vue();
 const vuePatchOptsSet = new Set(['add', 'remove', 'replace', 'move', 'copy']);
 const completedAppStatusSet = new Set(['error', 'finished', 'terminating', 'stopped']);
+
+Object.defineProperties(Vue.prototype, {
+  $eventBus: {
+    value: eventBus,
+  },
+});
 
 function connectToSocket(url, ...namespaces) {
   const socket = io(`${url}/${namespaces.join('-')}`, {
@@ -143,14 +146,6 @@ function applyPatch(document, patch) {
 
   return curDocument;
 }
-
-export const eventBus = new Vue();
-
-Object.defineProperties(Vue.prototype, {
-  $eventBus: {
-    value: eventBus,
-  },
-});
 
 Vue.component('sly-debug-panel-content', {
   props: ['value'],
@@ -450,8 +445,6 @@ Vue.component('sly-app', {
 
       if (this.checkPreviewMode()) return;
 
-      await this.sendStatePatchToApi();
-
       this.ws.send(JSON.stringify({
         command: command,
         state: this.state,
@@ -460,20 +453,10 @@ Vue.component('sly-app', {
       }));
     },
 
-    async sendStatePatchToApi() {
-      const payload = {
-        state: this.state,
-      };
-
-      await this.saveTaskDataToDB(payload);
-    },
-
     async post(command, payload = {}) {
       console.log('Http!', command);
 
       if (this.checkPreviewMode()) return;
-
-      await this.sendStatePatchToApi();
 
       fetch(`${this.formattedUrl}${command}`, {
           method: 'POST',
@@ -548,20 +531,12 @@ Vue.component('sly-app', {
     },
 
     shutdownApp() {
-      if (taskDataQueue.length) {
-        shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
-        return;
-      }
-
       this.post('/sly/shutdown');
-      shutdownTimeout = null;
     },
 
     runAction({ action, payload }) {
       if (action === 'shutdown') {
-        if (shutdownTimeout) return;
-
-        shutdownTimeout = setTimeout(this.shutdownApp, SHUTDOWN_DELAY);
+        this.shutdownApp();
 
         return;
       } else if (action) {
@@ -577,62 +552,6 @@ Vue.component('sly-app', {
       if (payload.data) {
         this.data = applyPatch(this.data, payload.data);
       }
-
-      await this.saveTaskDataToDB(payload);
-    },
-
-    async _saveTaskDataToDB(payload, requestId) {
-      if (!this.publicApiInstance || !this.task?.id || (!payload.state && !payload.data)) return;
-
-      let curRequestId = requestId;
-
-      if (!requestId) {
-        let queueIsEmpty = !taskDataQueue.length;
-
-        curRequestId = uuid();
-
-        taskDataQueue.push({
-          requestId: curRequestId,
-          payload,
-        });
-
-        if (!queueIsEmpty) {
-          return;
-        }
-      }
-
-      try {
-        await this.publicApiInstance.post('tasks.app-v2.data.set', {
-          taskId: this.task.id,
-          payload: {
-            ...payload,
-            state: this.state,
-          },
-        });
-      } catch (err) {
-        console.error({
-          message: '"tasks.app-v2.data.set" failed',
-          status: err?.response?.status,
-          details: err?.response?.data?.details,
-        });
-      } finally {
-        const reqIdx =  taskDataQueue.findIndex(q => q.requestId === curRequestId);
-
-        if (reqIdx >= 0) {
-          taskDataQueue.splice(reqIdx, 1);
-        }
-
-        // console.log('Set data request:', curRequestId, ', queue size:', taskDataQueue.length)
-
-        if (taskDataQueue.length) {
-          const nextReq = taskDataQueue[0];
-          this._saveTaskDataToDB(nextReq.payload, nextReq.requestId);
-        }
-      }
-    },
-
-    async saveTaskDataToDB(payload) {
-      await this._saveTaskDataToDB(payload)
     },
 
     updateTaskData(payload) {
@@ -808,12 +727,14 @@ Vue.component('sly-app', {
                 },
               });
 
-              const taskData = this.task?.settings?.customData;
+              if (integrationData.isStaticVersion) {
+                const taskData = this.task?.settings?.customData;
 
-              if (taskData) {
-                const { state = {}, data = {} } = taskData;
-                this.state = state;
-                this.data = data;
+                if (taskData) {
+                  const { state = {}, data = {} } = taskData;
+                  this.state = state;
+                  this.data = data;
+                }
               }
             }
           } catch (err) {
@@ -841,7 +762,7 @@ Vue.component('sly-app', {
 
         if (stateRes) {
           this.isDebugMode = !!stateRes.headers.get('x-debug-mode');
-          console.log('State headers:', stateRes.headers);
+
           state = await stateRes.json();
         }
 
@@ -858,26 +779,6 @@ Vue.component('sly-app', {
 
       if (this.isDebugMode && (serverAddress || (rawServerAddress === '/'))) {
         window.config.SLY_APP_DEBUG_SERVER_ADDRESS = serverAddress || '/';
-      }
-
-      if (this.publicApiInstance && taskId && (serverAddress || (rawServerAddress === '/'))) {
-        const initialState = {};
-
-        const stateKeys = Object.keys(this.state);
-
-        if (stateKeys?.length) {
-          initialState.state = stateKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.state[key] }));
-        }
-
-        const dataKeys = Object.keys(this.data);
-
-        if (dataKeys?.length) {
-          initialState.data = dataKeys.map(key => ({ op: 'add', path: `/${key}`, value: this.data[key] }));
-        }
-
-        if (!integrationData.isStaticVersion && !completedAppStatusSet.has(this.task?.status)) {
-          await this.saveTaskDataToDB(initialState);
-        }
       }
 
       document.addEventListener('keypress', this.hotkeysHandler);
