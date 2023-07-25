@@ -728,7 +728,6 @@ Vue.component('sly-app', {
               });
 
               if (integrationData.isStaticVersion) {
-                console.log('>>> load state & data from DB');
                 const taskData = this.task?.settings?.customData;
 
                 if (taskData) {
