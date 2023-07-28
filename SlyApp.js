@@ -445,12 +445,14 @@ Vue.component('sly-app', {
 
       if (this.checkPreviewMode()) return;
 
-      this.ws.send(JSON.stringify({
-        command: command,
-        state: this.state,
-        context: this.context,
-        payload,
-      }));
+      this.$nextTick(() => {
+        this.ws.send(JSON.stringify({
+          command: command,
+          state: this.state,
+          context: this.context,
+          payload,
+        }));
+      })
     },
 
     async post(command, payload = {}) {
@@ -458,29 +460,31 @@ Vue.component('sly-app', {
 
       if (this.checkPreviewMode()) return;
 
-      fetch(`${this.formattedUrl}${command}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            state: this.state,
-            context: this.context,
-            payload,
-          }),
-          headers: {'Content-Type': 'application/json'}
-      })
-      .then(requestErrorHandler)
-      .then(res => res.json())
-      .then((json) => {
-        if (!json) return;
+      this.$nextTick(() => {
+        fetch(`${this.formattedUrl}${command}`, {
+            method: 'POST',
+            body: JSON.stringify({
+              state: this.state,
+              context: this.context,
+              payload,
+            }),
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(requestErrorHandler)
+        .then(res => res.json())
+        .then((json) => {
+          if (!json) return;
 
-        this.merge(json);
-      })
-      .catch((err) => {
-        if (!err?.details?.skipError) {
-          this.$refs['err-dialog'].open(err);
-        }
+          this.merge(json);
+        })
+        .catch((err) => {
+          if (!err?.details?.skipError) {
+            this.$refs['err-dialog'].open(err);
+          }
 
-        throw err;
-      });
+          throw err;
+        });
+      })
     },
 
     async getJson(path, contentOnly = true) {
