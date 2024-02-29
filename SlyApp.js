@@ -628,6 +628,17 @@ Vue.component('sly-app', {
   },
 
   async created() {
+    window.addEventListener('message', (event) => {
+      const { action, payload } = event.data;
+
+      if (action === 'context-changed') {
+        this.context = {
+          apiToken: this.context?.apiToken,
+          ...payload,
+        };
+      }
+    }, false);
+
     this.post.throttled = throttle(this.post, 1200);
 
     try {
