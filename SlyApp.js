@@ -639,6 +639,10 @@ Vue.component('sly-app', {
       }
     }, false);
 
+    if (window.parent) {
+      window.parent.postMessage({ action: 'init-start' }, "*");
+    }
+
     this.post.throttled = throttle(this.post, 1200);
 
     try {
@@ -807,6 +811,10 @@ Vue.component('sly-app', {
       }
 
       this.loading = false;
+
+      if (window.parent) {
+        window.parent.postMessage({ action: 'init-end' }, "*");
+      }
     }
 
     console.log('First Init WS');
