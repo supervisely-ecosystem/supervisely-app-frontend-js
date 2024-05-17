@@ -1,7 +1,4 @@
 import * as jsonpatch from 'https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/index.mjs';
-import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
-import cloneDeep from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/cloneDeep.js';
-import isEqual from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/isEqual.js';
 import jwtDecode from 'https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.esm.js';
 
 const eventBus = new Vue();
@@ -125,7 +122,7 @@ function applyPatch(document, patch) {
             parentObjectFrom = curDocument;
           }
 
-          const moveValue = cloneDeep(jsonpatch.getValueByPointer(curDocument, operation.from));
+          const moveValue = window.sly.packages.lodash.cloneDeep(jsonpatch.getValueByPointer(curDocument, operation.from));
 
           if (operation.op === 'move') {
             Vue.delete(parentObjectFrom, propNameFrom);
@@ -148,10 +145,10 @@ function applyPatch(document, patch) {
 }
 
 Vue.component('sly-debug-panel-content', {
-  props: ['value'],
+  props: ['value', 'expanded'],
   template: `
     <div>
-      <div ref="jsoneditor" style="width: 340px; height: calc(100vh - 40px)"></div>
+      <div ref="jsoneditor" style="height: calc(100vh - 40px)" :style="{ width: expanded ? '700px' : '340px'  }"></div>
     </div>
   `,
   watch: {
@@ -179,17 +176,22 @@ Vue.component('sly-debug-panel', {
   template: `
     <div style="z-index: 9999999; position: fixed; top: 0; right: 0; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px;">
       <div style="display: flex; justify-content: flex-end;">
+        <el-button v-if="isOpen" type="text" @click="expanded = !expanded" style="margin-left: 5px;">
+          <i :class="[expanded ? 'el-icon-caret-right' : 'el-icon-caret-left']"></i>
+        </el-button>
+
         <el-button type="text" @click="isOpen = !isOpen" style="padding: 0;">
           <i :class="[isOpen ? 'el-icon-caret-top' : 'el-icon-caret-bottom']"></i>
         </el-button>
       </div>
 
-      <sly-debug-panel-content v-if="isOpen" :value="value"></sly-debug-panel-content>
+      <sly-debug-panel-content v-if="isOpen" :value="value" :expanded="expanded"></sly-debug-panel-content>
     </div>
   `,
   data: function () {
     return {
       isOpen: false,
+      expanded: false,
     };
   },
 });
@@ -512,7 +514,7 @@ Vue.component('sly-app', {
     },
 
     async checkMerge(vuePatch, jsonPatch, key) {
-      if (!isEqual(vuePatch, jsonPatch)) {
+      if (!window.sly.packages.lodash.isEqual(vuePatch, jsonPatch)) {
         const vueState = JSON.stringify(vuePatch);
         const jsonState = JSON.stringify(jsonPatch);
 
@@ -643,7 +645,7 @@ Vue.component('sly-app', {
       window.parent.postMessage({ action: 'init-start' }, "*");
     }
 
-    this.post.throttled = throttle(this.post, 1200);
+    this.post.throttled = window.sly.packages.lodash.throttle(this.post, 1200);
 
     try {
       const rawUrl = new URL(this.url);
@@ -661,8 +663,19 @@ Vue.component('sly-app', {
         }
       }
 
+      let pyData = null;
+      let stateRes = null;
+
       if (!integrationData.isStaticVersion) {
-        this.sessionInfo = await this.getJson('/sly/session-info') || {};
+        let sessionInfo = null;
+
+        ([sessionInfo = {}, stateRes, pyData] = await Promise.all([
+          this.getJson('/sly/session-info'),
+          this.getJson('/sly/state', false),
+          this.getJson('/sly/data'),
+        ]));
+
+        this.sessionInfo = sessionInfo;
       }
 
       let taskId;
@@ -776,7 +789,6 @@ Vue.component('sly-app', {
       this.integrationData = integrationData;
 
       if (!integrationData.isStaticVersion) {
-        const stateRes = await this.getJson('/sly/state', false);
         let state;
 
         if (stateRes) {
@@ -785,14 +797,12 @@ Vue.component('sly-app', {
           state = await stateRes.json();
         }
 
-        const data = await this.getJson('/sly/data');
-
         if (state) {
           this.state = state;
         }
 
-        if (data) {
-          this.data = data;
+        if (pyData) {
+          this.data = pyData;
         }
       }
 
@@ -850,47 +860,4 @@ window.slyApp = {
   },
 };
 
-let scriptsLoadedCount = 0;
-let domLoaded = false;
-
-function initApp() {
-  if (!domLoaded || scriptsLoadedCount !== scripts.length) return;
-  slyApp.init();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  domLoaded = true;
-  initApp();
-});
-
-const scripts = [
-  'https://cdn.jsdelivr.net/npm/jsoneditor@9.7.0/dist/jsoneditor.min.js',
-  'https://cdn.jsdelivr.net/npm/jsoneditor@9.7.0/dist/jsoneditor.min.css',
-  'https://cdn.jsdelivr.net/npm/socket.io-client@2.0.4/dist/socket.io.js',
-  'https://cdn.jsdelivr.net/npm/axios@0.17.1/dist/axios.min.js',
-];
-
-scripts.forEach((f) => {
-  let el;
-  let srcField = 'src';
-
-  if (f.endsWith('.js')) {
-    el = document.createElement('script');
-
-  } else {
-    srcField = 'href';
-    el = document.createElement('link');
-    el.type = 'text/css';
-    el.rel = 'stylesheet';
-  }
-
-  el.onload = function () {
-    scriptsLoadedCount += 1;
-
-    initApp();
-  };
-
-  el[srcField] = f;
-
-  document.head.appendChild(el);
-});
+slyApp.init();
