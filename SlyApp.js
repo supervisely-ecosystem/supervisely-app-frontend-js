@@ -407,7 +407,7 @@ Vue.component('sly-app', {
       
           if (!component) return;
       
-          component.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          component.scrollIntoView({ block: 'start' });
 
           this.state.scrollIntoView = null;
         });
