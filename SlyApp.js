@@ -323,7 +323,7 @@ Vue.component('sly-app', {
 <div>
   <sly-app-error ref="err-dialog"></sly-app-error>
   <div ref="app-content">
-    <slot v-if="!loading" :state="state" :data="data" :command="command" :post="post" :session="task" />
+    <slot v-if="!loading" :ee="appEventEmitter" :state="state" :data="data" :command="command" :post="post" :session="task" />
   </div>
 
   <sly-debug-panel v-if="isDebugMode" :value="{ state: state, data: data }" />
@@ -333,6 +333,7 @@ Vue.component('sly-app', {
   data: function () {
     return {
       loading: true,
+      appEventEmitter: null,
       task: null,
       state: {
         scrollIntoView: null,
@@ -344,6 +345,7 @@ Vue.component('sly-app', {
       context: {},
       ws: null,
       isDebugMode: false,
+      isClientSideApp: false,
       publicApiInstance: null,
       apiInstance: null,
       appUrl: '',
@@ -446,6 +448,7 @@ Vue.component('sly-app', {
       console.log('Command!', command);
 
       if (this.checkPreviewMode()) return;
+      if (this.isClientSideApp) return;
 
       this.$nextTick(() => {
         this.ws.send(JSON.stringify({
@@ -461,6 +464,7 @@ Vue.component('sly-app', {
       console.log('Http!', command);
 
       if (this.checkPreviewMode()) return;
+      if (this.isClientSideApp) return;
 
       this.$nextTick(() => {
         fetch(`${this.formattedUrl}${command}`, {
@@ -491,6 +495,7 @@ Vue.component('sly-app', {
 
     async getJson(path, contentOnly = true) {
       if (this.checkPreviewMode()) return;
+      if (this.isClientSideApp) return;
 
       return fetch(`${this.formattedUrl}${path}`, {
         method: 'POST',
@@ -630,6 +635,11 @@ Vue.component('sly-app', {
   },
 
   async created() {
+    if (window.sly.packages.EventEmitter) {
+      this.appEventEmitter = new window.sly.packages.EventEmitter();
+      window.appEventEmitter = this.appEventEmitter;
+    }
+
     window.addEventListener('message', (event) => {
       const { action, payload } = event.data;
 
@@ -647,17 +657,21 @@ Vue.component('sly-app', {
 
     this.post.throttled = window.sly.packages.lodash.throttle(this.post, 1200);
 
+
+    let integrationData = {};
+
     try {
       const rawUrl = new URL(this.url);
       let rawIntegrationData = rawUrl.searchParams.get('slyContext');
 
       this.appUrl = `${rawUrl.origin}${rawUrl.pathname}`;
 
-      let integrationData = {};
-
       if (rawIntegrationData) {
         try {
           integrationData = JSON.parse(rawIntegrationData);
+          if (integrationData?.isClientSideApp) {
+            this.isClientSideApp = true;
+          }
         } catch (err) {
           console.error(err);
         }
@@ -666,7 +680,7 @@ Vue.component('sly-app', {
       let pyData = null;
       let stateRes = null;
 
-      if (!integrationData.isStaticVersion) {
+      if (!integrationData.isStaticVersion && !integrationData.isClientSideApp) {
         let sessionInfo = null;
 
         ([sessionInfo = {}, stateRes, pyData] = await Promise.all([
@@ -705,6 +719,7 @@ Vue.component('sly-app', {
 
       let rawServerAddress = '';
 
+      console.log('>>>> 1 SERVER_ADDRESS', serverAddress);
       if (serverAddress) {
         rawServerAddress = serverAddress;
 
@@ -784,11 +799,60 @@ Vue.component('sly-app', {
             console.warn('socket.io-client isn\'t available');
           }
         }
+
+        console.log('>>>> 2 isClientSideApp:', integrationData.isClientSideApp, integrationData);
+        if (integrationData.isClientSideApp) {
+          let pathname = rawUrl.pathname;
+          let sliceIndex = -1;
+
+          if (pathname.endsWith('/')) {
+            sliceIndex = -2;
+          }
+          const rootUrl = `${rawUrl.origin}${rawUrl.pathname.split('/').slice(0, sliceIndex).join('/')}`;
+          console.log('!+++++++++++++++++++++++');
+          // this.state = this.publicApiInstance.post(''),
+          // this.state = await this.publicApiInstance.post('ecosystem.file.download', {
+          //   moduleId: integrationData.moduleId,
+          //   // appId: this.app.id,
+          //   filePath: `app/state.json`,
+          //   version: integrationData.moduleVersion,
+          // }).then(res => res.data);
+          this.state = await fetch(`${rootUrl}/state.json`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+          })
+            .then((res) => {
+              if (!res.ok) {
+                this.$message.error('Failed to fetch app state');
+                throw formatError(res, data);
+              }
+            
+              return res;
+            })
+            .then(res => res.json())
+
+          console.log('!+++++++++++++++++++++++ State', this.state);
+
+          this.data = await fetch(`${rootUrl}/data.json`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+          })
+            .then((res) => {
+              if (!res.ok) {
+                this.$message.error('Failed to fetch app data');
+                throw formatError(res, data);
+              }
+            
+              return res;
+            })
+            .then(res => res.json())
+          console.log('!+++++++++++++++++++++++ Data', this.data);
+        }
       }
 
       this.integrationData = integrationData;
 
-      if (!integrationData.isStaticVersion) {
+      if (!integrationData.isStaticVersion && !integrationData.isClientSideApp) {
         let state;
 
         if (stateRes) {
@@ -827,8 +891,10 @@ Vue.component('sly-app', {
       }
     }
 
-    console.log('First Init WS');
-    this.connectToWs();
+    if (!integrationData.isStaticVersion && !integrationData.isClientSideApp) {
+      console.log('First Init WS');
+      this.connectToWs();
+    }
   },
 
   beforeDestroy() {
