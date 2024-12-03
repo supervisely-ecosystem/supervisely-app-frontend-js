@@ -719,7 +719,6 @@ Vue.component('sly-app', {
 
       let rawServerAddress = '';
 
-      console.log('>>>> 1 SERVER_ADDRESS', serverAddress);
       if (serverAddress) {
         rawServerAddress = serverAddress;
 
@@ -800,7 +799,6 @@ Vue.component('sly-app', {
           }
         }
 
-        console.log('>>>> 2 isClientSideApp:', integrationData.isClientSideApp, integrationData);
         if (integrationData.isClientSideApp) {
           let pathname = rawUrl.pathname;
           let sliceIndex = -1;
@@ -809,7 +807,6 @@ Vue.component('sly-app', {
             sliceIndex = -2;
           }
           const rootUrl = `${rawUrl.origin}${rawUrl.pathname.split('/').slice(0, sliceIndex).join('/')}`;
-          console.log('!+++++++++++++++++++++++');
           // this.state = this.publicApiInstance.post(''),
           // this.state = await this.publicApiInstance.post('ecosystem.file.download', {
           //   moduleId: integrationData.moduleId,
@@ -831,8 +828,6 @@ Vue.component('sly-app', {
             })
             .then(res => res.json())
 
-          console.log('!+++++++++++++++++++++++ State', this.state);
-
           this.data = await fetch(`${rootUrl}/data.json`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'}
@@ -846,7 +841,6 @@ Vue.component('sly-app', {
               return res;
             })
             .then(res => res.json())
-          console.log('!+++++++++++++++++++++++ Data', this.data);
         }
       }
 
