@@ -323,7 +323,17 @@ Vue.component('sly-app', {
 <div>
   <sly-app-error ref="err-dialog"></sly-app-error>
   <div ref="app-content">
-    <slot v-if="!loading" :ee="appEventEmitter" :state="state" :data="data" :command="command" :post="post" :session="task" />
+    <slot
+      v-if="!loading"
+      :ee="appEventEmitter"
+      :state="state"
+      :data="data"
+      :command="command"
+      :post="post"
+      :session="task"
+      :is-static-version="integrationData.isStaticVersion"
+      :public-api-instance="publicApiInstance"
+    />
   </div>
 
   <sly-debug-panel v-if="isDebugMode" :value="{ state: state, data: data }" />
@@ -671,6 +681,10 @@ Vue.component('sly-app', {
           integrationData = JSON.parse(rawIntegrationData);
           if (integrationData?.isClientSideApp) {
             this.isClientSideApp = true;
+          }
+
+          if (integrationData?.logLevel) {
+            window.slyLogLevel = integrationData.logLevel;
           }
         } catch (err) {
           console.error(err);
