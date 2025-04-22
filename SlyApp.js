@@ -14,6 +14,7 @@ Object.defineProperties(Vue.prototype, {
 function connectToSocket(url, ...namespaces) {
   const socket = io(`${url}/${namespaces.join('-')}`, {
     path: '/api/ws',
+    transports: ['websocket'],
   });
 
   socket.on('connect', () => {
